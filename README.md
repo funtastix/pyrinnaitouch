@@ -1,7 +1,7 @@
 
 # pyrinnaitouch - python interface to Rinnai Touch Wifi Controllers
 
-This is a python interface to the [Rinnai Touch Wifi Controller](https://www.rinnai.com.au/online/controllers/heating-and-cooling-controllers/rinnai-touch-wi-fi/)fireplaces.
+This is a python interface to the [Rinnai Touch Wifi Controller](https://www.rinnai.com.au/online/controllers/heating-and-cooling-controllers/rinnai-touch-wi-fi/).
 
 The specifications for the interface are contained in the [included pdf](./NBW2API_Iss1.3.pdf).
 
