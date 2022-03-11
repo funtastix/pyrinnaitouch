@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 setup(
     name="pyrinnaitouch",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    version="0.7.1",
+    version="0.7.2",
     license="mit",
     description="A python interface to the Rinnai Touch Wifi controller",
     long_description=LONG_DESCRIPTION,
