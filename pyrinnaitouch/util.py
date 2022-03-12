@@ -1,15 +1,15 @@
-﻿import socket
+﻿"""Utility functions"""
 import logging
-import asyncio
 
 _LOGGER = logging.getLogger(__name__)
 
-def GetAttribute(data, attribute, defaultValue):
-    return data.get(attribute) or defaultValue
+def get_attribute(data, attribute, default_value):
+    """get json attriubte from data."""
+    return data.get(attribute) or default_value
 
-def YNtoBool(str):
+def y_n_to_bool(str_arg):
     """Convert Rinnai YN to Bool"""
-    if str == "Y":
+    if str_arg == "Y":
         return True
     else:
         return False

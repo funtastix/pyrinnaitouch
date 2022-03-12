@@ -1,37 +1,34 @@
-import socket
-import time
-import argparse
-import json
-from .commands import *
-from .util import *
+"""Evap unit handling"""
 import logging
+
+from .util import get_attribute, y_n_to_bool
 
 _LOGGER = logging.getLogger(__name__)
 
-def HandleEvapMode(client,j,brivisStatus):
-    cfg = GetAttribute(j[1].get("ECOM"),"CFG",None)
+def HandleEvapMode(j,brivisStatus):
+    cfg = get_attribute(j[1].get("ECOM"),"CFG",None)
     if not cfg:
         # Probably an error
         _LOGGER.error("No CFG - Not happy, Jan")
 
     else:
-        if YNtoBool(GetAttribute(cfg, "ZAIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
             brivisStatus.heaterStatus.zones.append("A")
-        if YNtoBool(GetAttribute(cfg, "ZBIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
             brivisStatus.heaterStatus.zones.append("B")
-        if YNtoBool(GetAttribute(cfg, "ZCIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZCIS", None)):
             brivisStatus.heaterStatus.zones.append("C")
-        if YNtoBool(GetAttribute(cfg, "ZDIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZDIS", None)):
             brivisStatus.heaterStatus.zones.append("D")
 
-    gso = GetAttribute(j[1].get("ECOM"),"GSO",None)
+    gso = get_attribute(j[1].get("ECOM"),"GSO",None)
     if not gso:
         _LOGGER.error("No GSO here")
     else:
         #_LOGGER.debug("Looking at: {}".format(gso))
-        switch = GetAttribute(gso,"SW", None)
+        switch = get_attribute(gso,"SW", None)
         if switch == "N":
-            opmode = GetAttribute(gso, "OP", None)
+            opmode = get_attribute(gso, "OP", None)
             #_LOGGER.debug("setting opmode: {}".format(opmode))
             brivisStatus.evapStatus.SetMode(opmode)
 
@@ -41,27 +38,27 @@ def HandleEvapMode(client,j,brivisStatus):
 
             if opmode == "M":
                 # Evap is on and manual - what is the fan speed
-                evapFan = GetAttribute(gso,"FS",None)
-                _LOGGER.debug("Fan is: {}".format(evapFan))
+                evapFan = get_attribute(gso,"FS",None)
+                _LOGGER.debug("Fan is: %s", evapFan)
                 brivisStatus.evapStatus.FanOn(evapFan)
             
-                fanSpeed = GetAttribute(gso,"FL",None)
-                _LOGGER.debug("Fan Speed is: {}".format(fanSpeed))
+                fanSpeed = get_attribute(gso,"FL",None)
+                _LOGGER.debug("Fan Speed is: %s", fanSpeed)
                 brivisStatus.evapStatus.FanSpeed(int(fanSpeed))
 
-                waterPump = GetAttribute(gso,"PS",None)
-                _LOGGER.debug("Water Pump is: {}".format(waterPump))
+                waterPump = get_attribute(gso,"PS",None)
+                _LOGGER.debug("Water Pump is: %s", waterPump)
                 brivisStatus.evapStatus.WaterPumpOn(waterPump)
 
-                brivisStatus.evapStatus.zoneA = YNtoBool(GetAttribute(gso,"ZAUE",False))
-                brivisStatus.evapStatus.zoneB = YNtoBool(GetAttribute(gso,"ZBUE",False))
-                brivisStatus.evapStatus.zoneC = YNtoBool(GetAttribute(gso,"ZCUE",False))
-                brivisStatus.evapStatus.zoneD = YNtoBool(GetAttribute(gso,"ZDUE",False))
+                brivisStatus.evapStatus.zoneA = y_n_to_bool(get_attribute(gso,"ZAUE",False))
+                brivisStatus.evapStatus.zoneB = y_n_to_bool(get_attribute(gso,"ZBUE",False))
+                brivisStatus.evapStatus.zoneC = y_n_to_bool(get_attribute(gso,"ZCUE",False))
+                brivisStatus.evapStatus.zoneD = y_n_to_bool(get_attribute(gso,"ZDUE",False))
 
             else:
                 # Evap is on and auto - look for comfort level
-                comfort = GetAttribute(gso, "SP", 0)
-                _LOGGER.debug("Comfort Level is: {}".format(comfort))
+                comfort = get_attribute(gso, "SP", 0)
+                _LOGGER.debug("Comfort Level is: %s", comfort)
                 brivisStatus.evapStatus.Comfort(comfort)
 
                 brivisStatus.evapStatus.zoneA = False
@@ -69,18 +66,18 @@ def HandleEvapMode(client,j,brivisStatus):
                 brivisStatus.evapStatus.zoneC = False
                 brivisStatus.evapStatus.zoneD = False
 
-            gss = GetAttribute(j[1].get("ECOM"),"GSS",None)
+            gss = get_attribute(j[1].get("ECOM"),"GSS",None)
             if not gss:
                 _LOGGER.error("No GSS here")
             else:
-                brivisStatus.evapStatus.commonAuto = YNtoBool(GetAttribute(gss,"ZUAE",False))
-                brivisStatus.evapStatus.zoneAAuto = YNtoBool(GetAttribute(gss,"ZAAE",False))
-                brivisStatus.evapStatus.zoneBAuto = YNtoBool(GetAttribute(gss,"ZBAE",False))
-                brivisStatus.evapStatus.zoneCAuto = YNtoBool(GetAttribute(gss,"ZCAE",False))
-                brivisStatus.evapStatus.zoneDAuto = YNtoBool(GetAttribute(gss,"ZDAE",False))
+                brivisStatus.evapStatus.commonAuto = y_n_to_bool(get_attribute(gss,"ZUAE",False))
+                brivisStatus.evapStatus.zoneAAuto = y_n_to_bool(get_attribute(gss,"ZAAE",False))
+                brivisStatus.evapStatus.zoneBAuto = y_n_to_bool(get_attribute(gss,"ZBAE",False))
+                brivisStatus.evapStatus.zoneCAuto = y_n_to_bool(get_attribute(gss,"ZCAE",False))
+                brivisStatus.evapStatus.zoneDAuto = y_n_to_bool(get_attribute(gss,"ZDAE",False))
                 
-                brivisStatus.evapStatus.prewetting = YNtoBool(GetAttribute(gss,"PW",False))
-                brivisStatus.evapStatus.coolerBusy = YNtoBool(GetAttribute(gss,"BY",False))
+                brivisStatus.evapStatus.prewetting = y_n_to_bool(get_attribute(gss,"PW",False))
+                brivisStatus.evapStatus.coolerBusy = y_n_to_bool(get_attribute(gss,"BY",False))
 
 
         elif switch == "F":

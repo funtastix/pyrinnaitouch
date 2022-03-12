@@ -1,36 +1,33 @@
-﻿import socket
-import time
-import argparse
-import json
-from .commands import *
-from .util import *
+﻿"""Cooling unit handling"""
 import logging
+
+from .util import get_attribute, y_n_to_bool
 
 _LOGGER = logging.getLogger(__name__)
 
-def HandleCoolingMode(client,j,brivisStatus):
-    cfg = GetAttribute(j[1].get("CGOM"),"CFG",None)
+def HandleCoolingMode(j,brivisStatus):
+    cfg = get_attribute(j[1].get("CGOM"),"CFG",None)
     if not cfg:
         # Probably an error
         _LOGGER.error("No CFG - Not happy, Jan")
 
     else:
-        if YNtoBool(GetAttribute(cfg, "ZAIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
             brivisStatus.coolingStatus.zones.append("A")
-        if YNtoBool(GetAttribute(cfg, "ZBIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
             brivisStatus.coolingStatus.zones.append("B")
-        if YNtoBool(GetAttribute(cfg, "ZCIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZCIS", None)):
             brivisStatus.coolingStatus.zones.append("C")
-        if YNtoBool(GetAttribute(cfg, "ZDIS", None)):
+        if y_n_to_bool(get_attribute(cfg, "ZDIS", None)):
             brivisStatus.coolingStatus.zones.append("D")
 
-    oop = GetAttribute(j[1].get("CGOM"),"OOP",None)
+    oop = get_attribute(j[1].get("CGOM"),"OOP",None)
     if not oop:
         # Probably an error
         _LOGGER.error("No OOP - Not happy, Jan")
 
     else:
-        switch = GetAttribute(oop,"ST",None)
+        switch = get_attribute(oop,"ST",None)
         if switch == "N":
             _LOGGER.debug("Cooling is ON")
             brivisStatus.systemOn = True
@@ -38,24 +35,24 @@ def HandleCoolingMode(client,j,brivisStatus):
             brivisStatus.coolingStatus.CirculationFanOn(switch)
 
             # Cooling is on - get attributes
-            fanSpeed = GetAttribute(oop,"FL",None)
-            _LOGGER.debug("Fan Speed is: {}".format(fanSpeed))
+            fanSpeed = get_attribute(oop,"FL",None)
+            _LOGGER.debug("Fan Speed is: %s", fanSpeed)
             brivisStatus.coolingStatus.fanSpeed = int(fanSpeed) # Should catch errors!
 
             # GSO should be there
-            gso = GetAttribute(j[1].get("CGOM"),"GSO",None)
+            gso = get_attribute(j[1].get("CGOM"),"GSO",None)
             if not gso:
                 # Probably an error
                 _LOGGER.error("No GSO when cooling on. Not happy, Jan")
             else:
                 # Cooling is on - get attributes
-                opMode = GetAttribute(gso,"OP",None)
-                _LOGGER.debug("Cooling OpMode is: {}".format(opMode)) # A = Auto, M = Manual
+                opMode = get_attribute(gso,"OP",None)
+                _LOGGER.debug("Cooling OpMode is: %s", opMode) # A = Auto, M = Manual
                 brivisStatus.coolingStatus.SetMode(opMode)
 
                 # Set temp?
-                setTemp = GetAttribute(gso,"SP",None)
-                _LOGGER.debug("Cooling set temp is: {}".format(setTemp))
+                setTemp = get_attribute(gso,"SP",None)
+                _LOGGER.debug("Cooling set temp is: %s", setTemp)
                 brivisStatus.coolingStatus.setTemp = int(setTemp)
 
         elif switch == "Y":
@@ -66,53 +63,53 @@ def HandleCoolingMode(client,j,brivisStatus):
             brivisStatus.coolingStatus.CirculationFanOn(switch)
 
         elif switch == "Z":
-            _LOGGER.debug("Circulation Fan is: {}".format(switch))
+            _LOGGER.debug("Circulation Fan is: %s", switch)
             brivisStatus.systemOn = True
             brivisStatus.coolingStatus.CirculationFanOn(switch)
 
-            fanSpeed = GetAttribute(oop,"FL",None)
-            _LOGGER.debug("Fan Speed is: {}".format(fanSpeed))
+            fanSpeed = get_attribute(oop,"FL",None)
+            _LOGGER.debug("Fan Speed is: %s", fanSpeed)
             brivisStatus.coolingStatus.fanSpeed = int(fanSpeed) # Should catch errors!
 
         za = zb = zc = zd = None
-        z = GetAttribute(j[1].get("CGOM"),"ZAO",None)
+        z = get_attribute(j[1].get("CGOM"),"ZAO",None)
         if z:
-            za = GetAttribute(z,"UE",None)
-            brivisStatus.coolingStatus.zoneAsetTemp = GetAttribute(z,"SP", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZBO",None)
+            za = get_attribute(z,"UE",None)
+            brivisStatus.coolingStatus.zoneAsetTemp = get_attribute(z,"SP", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZBO",None)
         if z:
-            zb = GetAttribute(z,"UE",None)
-            brivisStatus.coolingStatus.zoneBsetTemp = GetAttribute(z,"SP", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZCO",None)
+            zb = get_attribute(z,"UE",None)
+            brivisStatus.coolingStatus.zoneBsetTemp = get_attribute(z,"SP", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZCO",None)
         if z:
-            zc = GetAttribute(z,"UE",None)
-            brivisStatus.coolingStatus.zoneCsetTemp = GetAttribute(z,"SP", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZDO",None)
+            zc = get_attribute(z,"UE",None)
+            brivisStatus.coolingStatus.zoneCsetTemp = get_attribute(z,"SP", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZDO",None)
         if z:
-            zd = GetAttribute(z,"UE",None)
-            brivisStatus.coolingStatus.zoneDsetTemp = GetAttribute(z,"SP", 999)
+            zd = get_attribute(z,"UE",None)
+            brivisStatus.coolingStatus.zoneDsetTemp = get_attribute(z,"SP", 999)
         brivisStatus.coolingStatus.SetZones(za,zb,zc,zd)
 
-        z = GetAttribute(j[1].get("CGOM"),"ZAS",None)
+        z = get_attribute(j[1].get("CGOM"),"ZAS",None)
         if z:
-            brivisStatus.coolingStatus.zoneAAuto = YNtoBool(GetAttribute(z,"AE",None))
-            brivisStatus.coolingStatus.zoneAtemp = GetAttribute(z,"MT", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZBS",None)
+            brivisStatus.coolingStatus.zoneAAuto = y_n_to_bool(get_attribute(z,"AE",None))
+            brivisStatus.coolingStatus.zoneAtemp = get_attribute(z,"MT", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZBS",None)
         if z:
-            brivisStatus.coolingStatus.zoneBAuto = YNtoBool(GetAttribute(z,"AE",None))
-            brivisStatus.coolingStatus.zoneBtemp = GetAttribute(z,"MT", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZCS",None)
+            brivisStatus.coolingStatus.zoneBAuto = y_n_to_bool(get_attribute(z,"AE",None))
+            brivisStatus.coolingStatus.zoneBtemp = get_attribute(z,"MT", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZCS",None)
         if z:
-            brivisStatus.coolingStatus.zoneCAuto = YNtoBool(GetAttribute(z,"AE",None))
-            brivisStatus.coolingStatus.zoneCtemp = GetAttribute(z,"MT", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZDS",None)
+            brivisStatus.coolingStatus.zoneCAuto = y_n_to_bool(get_attribute(z,"AE",None))
+            brivisStatus.coolingStatus.zoneCtemp = get_attribute(z,"MT", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZDS",None)
         if z:
-            brivisStatus.coolingStatus.zoneDAuto = YNtoBool(GetAttribute(z,"AE",None))
-            brivisStatus.coolingStatus.zoneDtemp = GetAttribute(z,"MT", 999)
-        z = GetAttribute(j[1].get("CGOM"),"ZUS",None)
+            brivisStatus.coolingStatus.zoneDAuto = y_n_to_bool(get_attribute(z,"AE",None))
+            brivisStatus.coolingStatus.zoneDtemp = get_attribute(z,"MT", 999)
+        z = get_attribute(j[1].get("CGOM"),"ZUS",None)
         if z:
-            brivisStatus.coolingStatus.commonAuto = YNtoBool(GetAttribute(z,"AE",None))
-            brivisStatus.coolingStatus.temperature = GetAttribute(z,"MT", 999)
+            brivisStatus.coolingStatus.commonAuto = y_n_to_bool(get_attribute(z,"AE",None))
+            brivisStatus.coolingStatus.temperature = get_attribute(z,"MT", 999)
 
 class CoolingStatus():
     """Cooling function status"""
@@ -155,10 +152,10 @@ class CoolingStatus():
 
     def SetZones(self,za,zb,zc,zd):
         # Y = On, N = off
-        self.zoneA = YNtoBool(za)
-        self.zoneB = YNtoBool(zb)
-        self.zoneC = YNtoBool(zc)
-        self.zoneD = YNtoBool(zd)
+        self.zoneA = y_n_to_bool(za)
+        self.zoneB = y_n_to_bool(zb)
+        self.zoneC = y_n_to_bool(zc)
+        self.zoneD = y_n_to_bool(zd)
 
     def CirculationFanOn(self,statusStr):
         # Z = On, N = Off
@@ -166,4 +163,3 @@ class CoolingStatus():
             self.circulationFanOn = True
         else:
             self.circulationFanOn = False
-
