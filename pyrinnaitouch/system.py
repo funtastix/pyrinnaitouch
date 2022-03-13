@@ -5,9 +5,11 @@ import time
 import json
 import re
 import asyncio
-from .heater import HandleHeatingMode, HeaterStatus
-from .cooler import HandleCoolingMode, CoolingStatus
-from .evap import HandleEvapMode, EvapStatus
+from enum import Enum
+from dataclasses import dataclass
+from .heater import handle_heating_mode, HeaterStatus
+from .cooler import handle_cooling_mode, CoolingStatus
+from .evap import handle_evap_mode, EvapStatus
 from .commands import (
     HEAT_ON_CMD,
     HEAT_OFF_CMD,
@@ -64,90 +66,88 @@ from .util import get_attribute, y_n_to_bool
 
 _LOGGER = logging.getLogger(__name__)
 
-class Event(object):
+class Event():
+    """Simple event class."""
 
     def __init__(self):
         self.__eventhandlers = []
 
     def __iadd__(self, handler):
+        """Add event handler."""
         self.__eventhandlers.append(handler)
         return self
 
     def __isub__(self, handler):
+        """Remove event handler."""
         self.__eventhandlers.remove(handler)
         return self
 
     def __call__(self, *args, **keywargs):
+        """Call event handler."""
         for eventhandler in self.__eventhandlers:
             if eventhandler is not None:
                 eventhandler(*args, **keywargs)
 
+@dataclass
 class BrivisStatus():
     """Overall Class for describing status"""
+    # pylint: disable=too-many-instance-attributes
     #modes
-    evapMode = False
-    coolingMode = False
-    heaterMode = False
-    systemOn = False
-    tempUnit = None
-    hasHeater = True
-    hasCooling = True
-    hasEvap = True
+    #TODO: turn into mode
+    evap_mode: bool = False
+    cooling_mode: bool = False
+    heater_mode: bool = False
+    system_on: bool = False
+    temp_unit: str = None
+    #turn into capabilities
+    has_heater: bool = True
+    has_cooling: bool = True
+    has_evap: bool = True
 
     #system info
-    firmwareVersion = None
-    wifiModuleVersion = None
+    firmware_version: str = None
+    wifi_module_version: str = None
 
     #zones
-    zoneAdesc = None
-    zoneBdesc = None
-    zoneCdesc = None
-    zoneDdesc = None
-    isMultiSetPoint = False
+    zone_a_desc: str = None
+    zone_b_desc: str = None
+    zone_c_desc: str = None
+    zone_d_desc: str = None
+    is_multi_set_point: bool = False
 
     #faults
-    hasFault = False
+    has_fault: bool = False
 
-    heaterStatus = HeaterStatus()
-    coolingStatus = CoolingStatus()
-    evapStatus = EvapStatus()
+    heater_status: HeaterStatus = HeaterStatus()
+    cooling_status: CoolingStatus = CoolingStatus()
+    evap_status: EvapStatus = EvapStatus()
 
-    def setMode(self,mode):
+    def set_mode(self,mode):
+        """Set the mode."""
         if mode == Mode.HEATING:
-            self.heaterMode = True
-            self.coolingMode = False
-            self.evapMode = False
+            self.heater_mode = True
+            self.cooling_mode = False
+            self.evap_mode = False
         elif mode == Mode.COOLING:
-            self.heaterMode = False
-            self.coolingMode = True
-            self.evapMode = False
+            self.heater_mode = False
+            self.cooling_mode = True
+            self.evap_mode = False
         elif mode == Mode.EVAP:
-            self.heaterMode = False
-            self.coolingMode = False
-            self.evapMode = True
+            self.heater_mode = False
+            self.cooling_mode = False
+            self.evap_mode = True
 
-# Ideally we could create an enum, but looks like that needs enum library - which nmight not be
-# available???
-class Mode:
+class Mode(Enum):
+    """Define system modes."""
     HEATING = 1
     EVAP = 2
     COOLING = 3
     RC = 4
     NONE = 5
 
-def ReadableMode(mode):
-    if mode == 1:
-        return "HEATING"
-    elif mode == 2:
-        return "EVAP"
-    elif mode == 3:
-        return "COOLING"
-    elif mode == 4:
-        return "RC"
-    else:
-        return "NONE"
-
 class RinnaiSystem:
+    """Main controller class to interact with the Rinnai Touch Wifi unit."""
+    # pylint: disable=too-many-instance-attributes,too-many-public-methods
 
     clients = {}
     instances = {}
@@ -156,9 +156,9 @@ class RinnaiSystem:
     TEMP_FAHRENHEIT = "°F"
 
     def __init__(self, ip_address):
-        self._touchIP = ip_address
-        self._touchPort = 27847
-        self._sendSequence = 1
+        self._touch_ip = ip_address
+        self._touch_port = 27847
+        self._send_sequence = 1
         self._lastupdated = 0
         self._status = BrivisStatus()
         self._lastclosed = 0
@@ -171,25 +171,29 @@ class RinnaiSystem:
         else:
             self._client = RinnaiSystem.clients[ip_address]
         RinnaiSystem.instances[ip_address] = self
-        self.OnUpdated = Event()
+        self._on_updated = Event()
 
-    def setZones(self, zones):
+    def set_zones(self, zones):
+        """Set the active zones in the system."""
         self._zones = zones
 
     @staticmethod
-    def getInstance(ip_address):
+    def get_instance(ip_address):
+        """Get a single instance of the system defined by its IP address."""
         if ip_address in RinnaiSystem.instances:
             return RinnaiSystem.instances[ip_address]
-        else:
-            return RinnaiSystem(ip_address)
+        return RinnaiSystem(ip_address)
 
-    def SubscribeUpdates(self,objMethod):
-        self.OnUpdated += objMethod
+    def subscribe_updates(self,obj_method):
+        """Subscribe to updates when the system status refreshes."""
+        self._on_updated += obj_method
 
-    def UnsubscribeUpdates(self,objMethod):
-        self.OnUpdated -= objMethod
+    def unsubscribe_updates(self,obj_method):
+        """Unsubscribe from updates received when the system status refreshes."""
+        self._on_updated -= obj_method
 
-    async def ReceiveData(self, client, timeout=5):
+    async def receive_data(self, timeout=5):
+        """Receive data and read until all buffer is read."""
         total_data = []
         data = ''
         nodata = False
@@ -197,7 +201,7 @@ class RinnaiSystem:
         begin = time.time()
         while 1:
             try:
-                data = client.recv(4096)
+                data = self._client.recv(4096)
                 if data and (len(data) > 0):
                     total_data.append(data)
                 else:
@@ -210,14 +214,16 @@ class RinnaiSystem:
 
         return b"".join(total_data)
 
-    async def HandleStatus(self, client, brivisStatus):
+    async def handle_status(self, brivis_status):
+        """Handle the JSON response from the system."""
+        # pylint: disable=too-many-branches,too-many-statements
         # Make sure enough time passed to get a status message
         await asyncio.sleep(1.5)
         #status = client.recv(4096)
         #_LOGGER.debug(status)
 
         try:
-            status = await self.ReceiveData(client, 2)
+            status = await self.receive_data(2)
             #jStr = status[14:]
             exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(status)) # pylint: disable=anomalous-backslash-in-string
             seq = int(exp.group(1))
@@ -225,12 +231,11 @@ class RinnaiSystem:
                 seq = 0
             else:
                 seq = seq + 1
-            self._sendSequence = seq
-            jStr = exp.group(2)
-            #jStr = '[{"SYST": {"CFG": {"MTSP": "N", "NC": "00", "DF": "N", "TU": "C", "CF": "1", "VR": "0183", "CV": "0010", "CC": "043", "ZA": " ", "ZB": " ", "ZC": " ", "ZD": " " }, "AVM": {"HG": "Y", "EC": "N", "CG": "Y", "RA": "N", "RH": "N", "RC": "N" }, "OSS": {"DY": "TUE", "TM": "16:45", "BP": "Y", "RG": "Y", "ST": "N", "MD": "C", "DE": "N", "DU": "N", "AT": "999", "LO": "N" }, "FLT": {"AV": "N", "C3": "000" } } },{"CGOM": {"CFG": {"ZUIS": "N", "ZAIS": "Y", "ZBIS": "Y", "ZCIS": "N", "ZDIS": "N", "CF": "N", "PS": "Y", "DG": "W" }, "OOP": {"ST": "F", "CF": "N", "FL": "00", "SN": "Y" }, "GSS": {"CC": "N", "FS": "N", "CP": "N" }, "APS": {"AV": "N" }, "ZUS": {"AE": "N", "MT": "999" }, "ZAS": {"AE": "N", "MT": "999" }, "ZBS": {"AE": "N", "MT": "999" }, "ZCS": {"AE": "N", "MT": "999" }, "ZDS": {"AE": "N", "MT": "999" } } }]'
-            _LOGGER.debug("Sequence: %s Json: %s", seq, jStr)
+            self._send_sequence = seq
+            json_str = exp.group(2)
+            _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
 
-            j = json.loads(jStr)
+            j = json.loads(json_str)
             #_LOGGER.debug(json.dumps(j[0], indent = 4))
 
             cfg = get_attribute(j[0].get("SYST"),"CFG",None)
@@ -240,17 +245,17 @@ class RinnaiSystem:
 
             else:
                 if get_attribute(cfg, "TU", None) == "F":
-                    brivisStatus.tempUnit = RinnaiSystem.TEMP_FAHRENHEIT
+                    brivis_status.temp_unit = RinnaiSystem.TEMP_FAHRENHEIT
                 else:
-                    brivisStatus.tempUnit = RinnaiSystem.TEMP_CELSIUS
+                    brivis_status.temp_unit = RinnaiSystem.TEMP_CELSIUS
 
-                brivisStatus.isMultiSetPoint = y_n_to_bool(get_attribute(cfg, "MTSP", None))
-                brivisStatus.zoneAdesc = get_attribute(cfg, "ZA", None).strip()
-                brivisStatus.zoneBdesc = get_attribute(cfg, "ZB", None).strip()
-                brivisStatus.zoneCdesc = get_attribute(cfg, "ZC", None).strip()
-                brivisStatus.zoneDdesc = get_attribute(cfg, "ZD", None).strip()
-                brivisStatus.firmwareVersion = get_attribute(cfg, "VR", None).strip()
-                brivisStatus.wifiModuleVersion = get_attribute(cfg, "CV", None).strip()
+                brivis_status.is_multi_set_point = y_n_to_bool(get_attribute(cfg, "MTSP", None))
+                brivis_status.zone_a_desc = get_attribute(cfg, "ZA", None).strip()
+                brivis_status.zone_b_desc = get_attribute(cfg, "ZB", None).strip()
+                brivis_status.zone_c_desc = get_attribute(cfg, "ZC", None).strip()
+                brivis_status.zone_d_desc = get_attribute(cfg, "ZD", None).strip()
+                brivis_status.firmware_version = get_attribute(cfg, "VR", None).strip()
+                brivis_status.wifi_module_version = get_attribute(cfg, "CV", None).strip()
 
             avm = get_attribute(j[0].get("SYST"),"AVM",None)
             if not avm:
@@ -258,18 +263,18 @@ class RinnaiSystem:
                 _LOGGER.error("No AVM - Not happy, Jan")
 
             else:
-                if get_attribute(avm, "HG", None) == "Y": # or GetAttribute(avm, "RA", None) == "Y" or GetAttribute(avm, "RH", None) == "Y":
-                    brivisStatus.hasHeater = True
+                if get_attribute(avm, "HG", None) == "Y":
+                    brivis_status.has_heater = True
                 else:
-                    brivisStatus.hasHeater = False
-                if get_attribute(avm, "CG", None) == "Y": # or GetAttribute(avm, "RA", None) == "Y" or GetAttribute(avm, "RC", None) == "Y":
-                    brivisStatus.hasCooling = True
+                    brivis_status.has_heater = False
+                if get_attribute(avm, "CG", None) == "Y":
+                    brivis_status.has_cooling = True
                 else:
-                    brivisStatus.hasCooling = False
+                    brivis_status.has_cooling = False
                 if get_attribute(avm, "EC", None) == "Y":
-                    brivisStatus.hasEvap = True
+                    brivis_status.has_evap = True
                 else:
-                    brivisStatus.hasEvap = False
+                    brivis_status.has_evap = False
 
             flt = get_attribute(j[0].get("SYST"), "FLT", None)
             if not avm:
@@ -277,21 +282,21 @@ class RinnaiSystem:
                 _LOGGER.error("No FLT - Not happy, Jan")
 
             else:
-                brivisStatus.hasFault = y_n_to_bool(get_attribute(flt, "AV", None))
+                brivis_status.has_fault = y_n_to_bool(get_attribute(flt, "AV", None))
 
             if 'HGOM' in j[1]:
-                HandleHeatingMode(j,brivisStatus)
-                brivisStatus.setMode(Mode.HEATING)
+                handle_heating_mode(j,brivis_status)
+                brivis_status.set_mode(Mode.HEATING)
                 _LOGGER.debug("We are in HEAT mode")
 
             elif 'CGOM' in j[1]:
-                HandleCoolingMode(j,brivisStatus)
-                brivisStatus.setMode(Mode.COOLING)
+                handle_cooling_mode(j,brivis_status)
+                brivis_status.set_mode(Mode.COOLING)
                 _LOGGER.debug("We are in COOL mode")
 
             elif 'ECOM' in j[1]:
-                HandleEvapMode(j,brivisStatus)
-                brivisStatus.setMode(Mode.EVAP)
+                handle_evap_mode(j,brivis_status)
+                brivis_status.set_mode(Mode.EVAP)
                 _LOGGER.debug("We are in EVAP mode")
 
             else:
@@ -314,281 +319,316 @@ class RinnaiSystem:
             return False
 
     async def set_cooling_mode(self):
+        """Set system to cooling mode."""
         return await self.validate_and_send(MODE_COOL_CMD)
 
     async def set_evap_mode(self):
+        """Set system to evap mode."""
         return await self.validate_and_send(MODE_EVAP_CMD)
 
     async def set_heater_mode(self):
+        """Set system to heater mode."""
         return await self.validate_and_send(MODE_HEAT_CMD)
 
     async def turn_heater_on(self):
+        """Turn heater on (and system)."""
         return await self.validate_and_send(HEAT_ON_CMD)
 
     async def turn_heater_off(self):
+        """Turn heater off (and system)."""
         return await self.validate_and_send(HEAT_OFF_CMD)
 
     async def turn_heater_fan_only(self):
+        """Turn circ fan on in heating mode while system is off."""
         return await self.validate_and_send(HEAT_CIRC_FAN_ON)
 
     async def set_heater_temp(self, temp):
+        """Set target temperature in heating mode."""
         cmd=HEAT_SET_TEMP
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(temp=temp))
-            return True
-        else:
-            return False
-
-    async def set_heater_auto(self):
-        return await self.validate_and_send(HEAT_SET_AUTO)
-
-    async def set_heater_manual(self):
-        return await self.validate_and_send(HEAT_SET_MANUAL)
-
-    async def heater_advance(self):
-        return await self.validate_and_send(HEAT_ADVANCE)
-
-    async def turn_heater_zone_on(self, zone):
-        cmd=HEAT_ZONE_ON
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def turn_heater_zone_off(self, zone):
-        cmd=HEAT_ZONE_OFF
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_heater_zone_temp(self, zone, temp):
-        cmd=HEAT_ZONE_SET_TEMP
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone, temp=temp))
-            return True
-        else:
-            return False
-
-    async def set_heater_zone_auto(self, zone):
-        cmd=HEAT_ZONE_SET_AUTO
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_heater_zone_manual(self, zone):
-        cmd=HEAT_ZONE_SET_MANUAL
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_heater_zone_advance(self, zone):
-        cmd=HEAT_ZONE_ADVANCE
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def turn_cooling_on(self):
-        return await self.validate_and_send(COOL_ON_CMD)
-
-    async def turn_cooling_off(self):
-        return await self.validate_and_send(COOL_OFF_CMD)
-
-    async def turn_cooling_fan_only(self):
-        return await self.validate_and_send(COOL_CIRC_FAN_ON)
-
-    async def set_cooling_temp(self, temp):
-        cmd=COOL_SET_TEMP
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(temp=temp))
-            return True
-        else:
-            return False
-
-    async def set_cooling_auto(self):
-        return await self.validate_and_send(COOL_SET_AUTO)
-
-    async def set_cooling_manual(self):
-        return await self.validate_and_send(COOL_SET_MANUAL)
-
-    async def cooling_advance(self):
-        return await self.validate_and_send(COOL_ADVANCE)
-
-    async def turn_cooling_zone_on(self, zone):
-        cmd=COOL_ZONE_ON
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def turn_cooling_zone_off(self, zone):
-        cmd=COOL_ZONE_OFF
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_cooling_zone_temp(self, zone, temp):
-        cmd=COOL_ZONE_SET_TEMP
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone, temp=temp))
-            return True
-        else:
-            return False
-
-    async def set_cooling_zone_auto(self, zone):
-        cmd=COOL_ZONE_SET_AUTO
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_cooling_zone_manual(self, zone):
-        cmd=COOL_ZONE_SET_MANUAL
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_cooling_zone_advance(self, zone):
-        cmd=COOL_ZONE_ADVANCE
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def turn_evap_on(self):
-        return await self.validate_and_send(EVAP_ON_CMD)
-
-    async def turn_evap_off(self):
-        return await self.validate_and_send(EVAP_OFF_CMD)
-
-    async def turn_evap_pump_on(self):
-        return await self.validate_and_send(EVAP_PUMP_ON)
-
-    async def turn_evap_pump_off(self):
-        return await self.validate_and_send(EVAP_PUMP_OFF)
-
-    async def turn_evap_fan_on(self):
-        return await self.validate_and_send(EVAP_FAN_ON)
-
-    async def turn_evap_fan_off(self):
-        return await self.validate_and_send(EVAP_FAN_OFF)
-
-    async def set_evap_auto(self):
-        return await self.validate_and_send(EVAP_SET_AUTO)
-
-    async def set_evap_manual(self):
-        return await self.validate_and_send(EVAP_SET_MANUAL)
-
-    async def set_evap_fanspeed(self, speed):
-        cmd=EVAP_FAN_SPEED
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(speed=f'{speed:02d}'))
-            return True
-        else:
-            return False
-
-    async def set_heater_fanspeed(self, speed):
-        cmd=HEAT_CIRC_FAN_SPEED
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(speed=f'{speed:02d}'))
-            return True
-        else:
-            return False
-
-    async def set_cooling_fanspeed(self, speed):
-        cmd=COOL_CIRC_FAN_SPEED
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(speed=f'{speed:02d}'))
-            return True
-        else:
-            return False
-
-    async def set_evap_comfort(self, comfort):
-        cmd=EVAP_SET_COMFORT
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(comfort=comfort))
-            return True
-        else:
-            return False
-
-    async def turn_evap_zone_on(self, zone):
-        cmd=EVAP_ZONE_ON
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def turn_evap_zone_off(self, zone):
-        cmd=EVAP_ZONE_OFF
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_evap_zone_auto(self, zone):
-        cmd=EVAP_ZONE_SET_AUTO
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    async def set_evap_zone_manual(self, zone):
-        cmd=EVAP_ZONE_SET_MANUAL
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd.format(zone=zone))
-            return True
-        else:
-            return False
-
-    def GetOfflineStatus(self):
-        return self._status
-
-    def validateCmd(self, cmd):
-        if cmd in MODE_COMMANDS:
-            return True
-        if cmd in HEAT_COMMANDS and self._status.heaterMode:
-            return True
-        if cmd in COOL_COMMANDS and self._status.coolingMode:
-            return True
-        if cmd in EVAP_COMMANDS and self._status.evapMode:
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(temp=temp))
             return True
         return False
 
-    async def renewConnection(self):
+    async def set_heater_auto(self):
+        """Set to auto mode in heater."""
+        return await self.validate_and_send(HEAT_SET_AUTO)
+
+    async def set_heater_manual(self):
+        """Set to manual mode in heater."""
+        return await self.validate_and_send(HEAT_SET_MANUAL)
+
+    async def heater_advance(self):
+        """Press advance button in heater mode."""
+        return await self.validate_and_send(HEAT_ADVANCE)
+
+    async def turn_heater_zone_on(self, zone):
+        """Turn a zone on in heating mode."""
+        cmd=HEAT_ZONE_ON
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def turn_heater_zone_off(self, zone):
+        """Turn a zone off in heating mode."""
+        cmd=HEAT_ZONE_OFF
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_heater_zone_temp(self, zone, temp):
+        """Set target temperature for a zone in heating mode."""
+        cmd=HEAT_ZONE_SET_TEMP
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone, temp=temp))
+            return True
+        return False
+
+    async def set_heater_zone_auto(self, zone):
+        """Set zone to auto mode in heating."""
+        cmd=HEAT_ZONE_SET_AUTO
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_heater_zone_manual(self, zone):
+        """Set zone to manual mode in heating."""
+        cmd=HEAT_ZONE_SET_MANUAL
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_heater_zone_advance(self, zone):
+        """Press zone advance button in heater mode."""
+        cmd=HEAT_ZONE_ADVANCE
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def turn_cooling_on(self):
+        """Turn cooling on (and system)."""
+        return await self.validate_and_send(COOL_ON_CMD)
+
+    async def turn_cooling_off(self):
+        """Turn cooling off (and system)."""
+        return await self.validate_and_send(COOL_OFF_CMD)
+
+    async def turn_cooling_fan_only(self):
+        """Turn circ fan on (fan only) in cooling mode while system off."""
+        return await self.validate_and_send(COOL_CIRC_FAN_ON)
+
+    async def set_cooling_temp(self, temp):
+        """Set main target temperature in cooling mode."""
+        cmd=COOL_SET_TEMP
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(temp=temp))
+            return True
+        return False
+
+    async def set_cooling_auto(self):
+        """Set auto mode in cooling."""
+        return await self.validate_and_send(COOL_SET_AUTO)
+
+    async def set_cooling_manual(self):
+        """Set manual mode in cooling."""
+        return await self.validate_and_send(COOL_SET_MANUAL)
+
+    async def cooling_advance(self):
+        """Press advance button in cooling mode."""
+        return await self.validate_and_send(COOL_ADVANCE)
+
+    async def turn_cooling_zone_on(self, zone):
+        """Turn zone on in cooling mode."""
+        cmd=COOL_ZONE_ON
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def turn_cooling_zone_off(self, zone):
+        """Turn zone off in cooling mode."""
+        cmd=COOL_ZONE_OFF
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_cooling_zone_temp(self, zone, temp):
+        """Set zone target temperature in cooling."""
+        cmd=COOL_ZONE_SET_TEMP
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone, temp=temp))
+            return True
+        return False
+
+    async def set_cooling_zone_auto(self, zone):
+        """Set zone to auto mode in cooling."""
+        cmd=COOL_ZONE_SET_AUTO
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_cooling_zone_manual(self, zone):
+        """Set zone to manual mode in cooling."""
+        cmd=COOL_ZONE_SET_MANUAL
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_cooling_zone_advance(self, zone):
+        """Press advance button in a zone in cooling mode."""
+        cmd=COOL_ZONE_ADVANCE
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def turn_evap_on(self):
+        """Turn on evap (and system)."""
+        return await self.validate_and_send(EVAP_ON_CMD)
+
+    async def turn_evap_off(self):
+        """Turn off evap (and system)."""
+        return await self.validate_and_send(EVAP_OFF_CMD)
+
+    async def turn_evap_pump_on(self):
+        """Turn water pump on in evap mode."""
+        return await self.validate_and_send(EVAP_PUMP_ON)
+
+    async def turn_evap_pump_off(self):
+        """Turn water pump off in evap mode."""
+        return await self.validate_and_send(EVAP_PUMP_OFF)
+
+    async def turn_evap_fan_on(self):
+        """Turn fan on in evap mode."""
+        return await self.validate_and_send(EVAP_FAN_ON)
+
+    async def turn_evap_fan_off(self):
+        """Turn fan off in evap mode."""
+        return await self.validate_and_send(EVAP_FAN_OFF)
+
+    async def set_evap_auto(self):
+        """Set to auto mode in evap."""
+        return await self.validate_and_send(EVAP_SET_AUTO)
+
+    async def set_evap_manual(self):
+        """Set to manual mode in evap."""
+        return await self.validate_and_send(EVAP_SET_MANUAL)
+
+    async def set_evap_fanspeed(self, speed):
+        """Set fan speed in evap mode."""
+        cmd=EVAP_FAN_SPEED
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(speed=f'{speed:02d}'))
+            return True
+        return False
+
+    async def set_heater_fanspeed(self, speed):
+        """Set fan speed in heater mode."""
+        cmd=HEAT_CIRC_FAN_SPEED
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(speed=f'{speed:02d}'))
+            return True
+        return False
+
+    async def set_cooling_fanspeed(self, speed):
+        """Set fan speed in cooling mode."""
+        cmd=COOL_CIRC_FAN_SPEED
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(speed=f'{speed:02d}'))
+            return True
+        return False
+
+    async def set_evap_comfort(self, comfort):
+        """Set comfort level in Evap auto mode."""
+        cmd=EVAP_SET_COMFORT
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(comfort=comfort))
+            return True
+        return False
+
+    async def turn_evap_zone_on(self, zone):
+        """Turn zone off in Evap mode."""
+        cmd=EVAP_ZONE_ON
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def turn_evap_zone_off(self, zone):
+        """Turn zone off in Evap mode."""
+        cmd=EVAP_ZONE_OFF
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_evap_zone_auto(self, zone):
+        """Set zone to Auto mode on Evap."""
+        cmd=EVAP_ZONE_SET_AUTO
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_evap_zone_manual(self, zone):
+        """Set zone to manual mode on Evap."""
+        cmd=EVAP_ZONE_SET_MANUAL
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    def get_stored_status(self):
+        """Get the current status without a refresh."""
+        return self._status
+
+    def validate_command(self, cmd):
+        """Validate a command is appropriat to the current operating mode."""
+        if cmd in MODE_COMMANDS:
+            return True
+        if cmd in HEAT_COMMANDS and self._status.heater_mode:
+            return True
+        if cmd in COOL_COMMANDS and self._status.cooling_mode:
+            return True
+        if cmd in EVAP_COMMANDS and self._status.evap_mode:
+            return True
+        return False
+
+    async def renew_connection(self):
+        """Safely renew the connection if it is disconnected."""
         connection_error = False
         try:
             if self._client is not None:
-                if self._client.getpeername and self._client.getpeername() is not None and self._jsonerrors < 4:
+                if (
+                    self._client.getpeername
+                    and self._client.getpeername() is not None
+                    and self._jsonerrors < 4
+                ):
                     return True
         except (OSError, ConnectionError) as ocerr:
             _LOGGER.debug("Error 1st phase during renewConnection %s", ocerr)
             connection_error = True
 
-        if self._client is None or self._client._closed or connection_error or (self._jsonerrors > 2): # pylint: disable=protected-access
+        if (
+            self._client is None
+            or self._client._closed # pylint: disable=protected-access
+            or connection_error
+            or (self._jsonerrors > 2)
+        ):
             try:
                 if connection_error or (self._jsonerrors > 2):
                     self._client.close()
                 self._jsonerrors = 0
-                self._client = await self.ConnectToTouch(self._touchIP,self._touchPort)
-                RinnaiSystem.clients[self._touchIP] = self._client
+                await self.connect_to_touch(self._touch_ip,self._touch_port)
+                RinnaiSystem.clients[self._touch_ip] = self._client
                 return True
             except ConnectionRefusedError as crerr:
                 _LOGGER.debug("Error during renewConnection %s", crerr)
@@ -598,19 +638,20 @@ class RinnaiSystem:
                 _LOGGER.debug("Error during renewConnection %s", eerr)
         return False
 
-    async def sendCmd(self, cmd):
-        if await self.renewConnection():
+    async def send_command(self, cmd):
+        """Send the command to the unit."""
+        if await self.renew_connection():
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
 
-            seq = str(self._sendSequence).zfill(6)
+            seq = str(self._send_sequence).zfill(6)
             #self._sendSequence = self._sendSequence + 1
             _LOGGER.debug("Sending command: %s", "N" + seq + cmd)
-            await self.SendToTouch(self._client, "N" + seq + cmd)
+            await self.send_to_touch("N" + seq + cmd)
             status = BrivisStatus()
-            res = await self.HandleStatus(self._client, status)
+            res = await self.handle_status(status)
             if res:
                 self._status = status
-                self.OnUpdated()
+                self._on_updated()
         else:
             _LOGGER.debug("renewing connection failed, not sending command")
 
@@ -618,32 +659,33 @@ class RinnaiSystem:
         #self._client.close()
 
     async def validate_and_send(self, cmd):
-        if self.validateCmd(cmd):
-            await self.sendCmd(cmd)
+        """Validate and send a command."""
+        if self.validate_command(cmd):
+            await self.send_command(cmd)
             return True
-        else:
-            _LOGGER.error("Validation of command failed. Not sending")
-            return False
+        _LOGGER.error("Validation of command failed. Not sending")
+        return False
 
-    async def GetStatus(self):
+    async def get_status(self):
+        """Retrieve the latest status from the unit."""
         #every 5 updates, blindly send an empty command to maintain the connection
         self._nosendupdates = self._nosendupdates + 1
         if self._nosendupdates > 5:
             self._nosendupdates = 0
             try:
                 _LOGGER.debug("sending empty command")
-                await self.SendToTouch(self._client, "NA")
+                await self.send_to_touch("NA")
                 _LOGGER.debug("sent empty command")
             except Exception as err: # pylint: disable=broad-except
                 _LOGGER.debug("Empty command exception: %s", err)
 
-        if await self.renewConnection():
+        if await self.renew_connection():
             status = BrivisStatus()
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
-            res = await self.HandleStatus(self._client, status)
+            res = await self.handle_status(status)
             if res:
                 self._status = status
-                self.OnUpdated()
+                self._on_updated()
 
             # don't shut down unless last shutdown is 1 hour ago
             if self._lastclosed == 0:
@@ -662,27 +704,27 @@ class RinnaiSystem:
         return self._status
 
     async def async_will_remove_from_hass(self):
+        """Call this when removing the integration from home assistant."""
         try:
             self._client.shutdown(socket.SHUT_RDWR)
             self._client.close()
         except: # pylint: disable=bare-except
             _LOGGER.debug("Nothing to close")
 
-    async def ConnectToTouch(self, touchIP, port):
-        # connect the client
+    async def connect_to_touch(self, touch_ip, port):
+        """Connect the client."""
         # create an ipv4 (AF_INET) socket object using the tcp protocol (SOCK_STREAM)
         _LOGGER.debug("Creating new client...")
         try:
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client.settimeout(10)
-            client.connect((touchIP, port))
-            return client
+            client.connect((touch_ip, port))
+            self._client = client
         except ConnectionRefusedError as crerr:
             raise crerr
             #should really take a few hours break to recover!
 
-
-    async def SendToTouch(self, client, cmd):
-        """Send the command and return the response."""
+    async def send_to_touch(self, cmd):
+        """Send the command."""
         #_LOGGER.debug("DEBUG: {}".format(cmd))
-        client.sendall(cmd.encode())
+        self._client.sendall(cmd.encode())

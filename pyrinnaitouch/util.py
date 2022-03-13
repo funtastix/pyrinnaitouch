@@ -11,5 +11,4 @@ def y_n_to_bool(str_arg):
     """Convert Rinnai YN to Bool"""
     if str_arg == "Y":
         return True
-    else:
-        return False
+    return False
