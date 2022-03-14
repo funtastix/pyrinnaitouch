@@ -12,3 +12,24 @@ def y_n_to_bool(str_arg):
     if str_arg == "Y":
         return True
     return False
+
+class SchedulePeriod(Enum):
+    """Define system schedule time periods."""
+    WAKE = "W"
+    LEAVE = "L"
+    RETURN = "R"
+    PRE_SLEEP = "P"
+    SLEEP = "S"
+
+def symbol_to_schedule_period(symbol):
+    if symbol == "W":
+        return SchedulePeriod.WAKE
+    if symbol == "L":
+        return SchedulePeriod.LEAVE
+    if symbol == "R":
+        return SchedulePeriod.RETURN
+    if symbol == "P":
+        return SchedulePeriod.PRE_SLEEP
+    if symbol == "S":
+        return SchedulePeriod.SLEEP
+    return None

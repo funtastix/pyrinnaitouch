@@ -2,20 +2,20 @@
 
 from setuptools import setup, find_packages  # type: ignore
 
-with open("README.md", "r") as fh:
+with open("README.md", "r") as fh: # pylint: disable=unspecified-encoding
     LONG_DESCRIPTION = fh.read()
 
 setup(
     name="pyrinnaitouch",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    version="0.8.0",
+    version="0.9.0",
     license="mit",
     description="A python interface to the Rinnai Touch Wifi controller",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     author="Funtastix",
     url="https://github.com/funtastix/pyrinnaitouch",
-    download_url="https://github.com/funtastix/pyrinnaitouch/archive/refs/tags/v0.7.0.tar.gz",
+    download_url="https://github.com/funtastix/pyrinnaitouch/archive/refs/tags/v0.9.0.tar.gz",
     keywords=[
         "Rinnai Touch",
         "Brivis",

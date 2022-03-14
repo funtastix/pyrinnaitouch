@@ -1,7 +1,7 @@
 ﻿"""Heater unit handling"""
 import logging
 
-from .util import get_attribute, y_n_to_bool
+from .util import get_attribute, y_n_to_bool, SchedulePeriod, symbol_to_schedule_period
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +30,9 @@ def handle_heating_mode(j,brivis_status):
         _LOGGER.error("No OOP - Not happy, Jan")
 
     else:
+        brivis_status.heater_status.schedule_period = None
+        brivis_status.heater_status.advance_period = None
+
         switch = get_attribute(oop,"ST",None)
         if switch == "N":
             _LOGGER.debug("Heater is ON")
@@ -62,11 +65,12 @@ def handle_heating_mode(j,brivis_status):
                 if not gss:
                     _LOGGER.error("No GSS here")
                 else:
-                    brivis_status.heater_status.preheating = y_n_to_bool(get_attribute(
-                                                                            gss,
-                                                                            "PH",
-                                                                            False
-                                                                        ))
+                    preheat = y_n_to_bool(get_attribute(gss,"PH",False))
+                    brivis_status.heater_status.preheating = preheat
+                    period = symbol_to_schedule_period(get_attribute(gss,"AT",None))
+                    brivis_status.heater_status.schedule_period = period
+                    period = symbol_to_schedule_period(get_attribute(gss,"AZ",None))
+                    brivis_status.heater_status.advance_period = period
 
         elif switch == "F":
             # Heater is off
@@ -136,6 +140,8 @@ class HeaterStatus():
     common_auto = False
     temperature = 999
     preheating = False
+    schedule_period = None
+    advance_period = None
 
     #zones
     zones = []

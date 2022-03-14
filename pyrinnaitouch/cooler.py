@@ -1,7 +1,7 @@
 ﻿"""Cooling unit handling"""
 import logging
 
-from .util import get_attribute, y_n_to_bool
+from .util import get_attribute, y_n_to_bool, SchedulePeriod, symbol_to_schedule_period
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +30,9 @@ def handle_cooling_mode(j,brivis_status):
         _LOGGER.error("No OOP - Not happy, Jan")
 
     else:
+        brivis_status.cooling_status.schedule_period = None
+        brivis_status.cooling_status.advance_period = None
+
         switch = get_attribute(oop,"ST",None)
         if switch == "N":
             _LOGGER.debug("Cooling is ON")
@@ -57,6 +60,15 @@ def handle_cooling_mode(j,brivis_status):
                 set_temp = get_attribute(gso,"SP",None)
                 _LOGGER.debug("Cooling set temp is: %s", set_temp)
                 brivis_status.cooling_status.set_temp = int(set_temp)
+
+                gss = get_attribute(j[1].get("HGOM"),"GSS",None)
+                if not gss:
+                    _LOGGER.error("No GSS here")
+                else:
+                    period = symbol_to_schedule_period(get_attribute(gss,"AT",None))
+                    brivis_status.cooling_status.schedule_period = period
+                    period = symbol_to_schedule_period(get_attribute(gss,"AZ",None))
+                    brivis_status.cooling_status.advance_period = period
 
         elif switch == "F":
             # Cooling is off
@@ -124,6 +136,8 @@ class CoolingStatus():
     set_temp = 0
     common_auto = False
     temperature = 999
+    schedule_period = None
+    advance_period = None
 
     #zones
     zones = []
