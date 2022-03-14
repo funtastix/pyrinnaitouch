@@ -195,4 +195,5 @@ class CoolingStatus():
         # A = Advance, N = None, O = Operation (what is that?)
         if status_str == "A":
             self.advanced = True
-        self.advanced = False
+        else:
+            self.advanced = False
