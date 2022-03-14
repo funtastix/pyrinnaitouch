@@ -1,13 +1,13 @@
 ﻿"""Heater unit handling"""
 import logging
 
-from .util import get_attribute, y_n_to_bool, SchedulePeriod, symbol_to_schedule_period
+from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period
 
 _LOGGER = logging.getLogger(__name__)
 
 def handle_heating_mode(j,brivis_status):
     """Parse heater part of JSON."""
-    # pylint: disable=too-many-branches,too-many-statements
+    # pylint: disable=too-many-branches,too-many-statements,too-many-locals
 
     cfg = get_attribute(j[1].get("HGOM"),"CFG",None)
     if not cfg:

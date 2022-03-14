@@ -1,5 +1,6 @@
 ﻿"""Utility functions"""
 import logging
+from enum import Enum
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class SchedulePeriod(Enum):
     SLEEP = "S"
 
 def symbol_to_schedule_period(symbol):
+    """Convert JSON symbol to schedule time periods."""
     if symbol == "W":
         return SchedulePeriod.WAKE
     if symbol == "L":
