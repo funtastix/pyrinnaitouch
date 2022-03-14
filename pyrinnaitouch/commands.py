@@ -15,6 +15,7 @@ HEAT_SET_TEMP = '{{"HGOM": {{"GSO": {{"SP": "{temp}" }} }} }}'
 HEAT_SET_MANUAL = '{{"HGOM": {{"GSO": {{"OP": "M" }} }} }}'
 HEAT_SET_AUTO = '{{"HGOM": {{"GSO": {{"OP": "A" }} }} }}'
 HEAT_ADVANCE = '{{"HGOM": {{"GSO": {{"AO": "A" }} }} }}'
+HEAT_ADVANCE_CANCEL = '{{"HGOM": {{"GSO": {{"AO": "N" }} }} }}'
 
 HEAT_ZONE_ON = '{{"HGOM": {{"Z{zone}O": {{"UE": "Y" }} }} }}'
 HEAT_ZONE_OFF = '{{"HGOM": {{"Z{zone}O": {{"UE": "N" }} }} }}'
@@ -22,6 +23,7 @@ HEAT_ZONE_SET_TEMP = '{{"HGOM": {{"Z{zone}O": {{"SP": "{temp}" }} }} }}'
 HEAT_ZONE_SET_MANUAL = '{{"HGOM": {{"Z{zone}O": {{"OP": "M" }} }} }}'
 HEAT_ZONE_SET_AUTO = '{{"HGOM": {{"Z{zone}O": {{"OP": "A" }} }} }}'
 HEAT_ZONE_ADVANCE = '{{"HGOM": {{"Z{zone}O": {{"AO": "A" }} }} }}'
+HEAT_ZONE_ADVANCE_CANCEL = '{{"HGOM": {{"Z{zone}O": {{"AO": "A" }} }} }}'
 
 HEAT_COMMANDS = [
     HEAT_ON_CMD,
@@ -33,10 +35,12 @@ HEAT_COMMANDS = [
     HEAT_SET_MANUAL,
     HEAT_SET_AUTO,
     HEAT_ADVANCE,
+    HEAT_ADVANCE_CANCEL,
     HEAT_ZONE_SET_TEMP,
     HEAT_ZONE_SET_MANUAL,
     HEAT_ZONE_SET_AUTO,
     HEAT_ZONE_ADVANCE,
+    HEAT_ZONE_ADVANCE_CANCEL,
     HEAT_CIRC_FAN_SPEED
 ]
 
@@ -50,6 +54,7 @@ COOL_SET_TEMP = '{{"CGOM": {{"GSO": {{"SP": "{temp}" }} }} }}'
 COOL_SET_MANUAL = '{{"CGOM": {{"GSO": {{"OP": "M" }} }} }}'
 COOL_SET_AUTO = '{{"CGOM": {{"GSO": {{"OP": "A" }} }} }}'
 COOL_ADVANCE = '{{"CGOM": {{"GSO": {{"AO": "A" }} }} }}'
+COOL_ADVANCE_CANCEL = '{{"CGOM": {{"GSO": {{"AO": "N" }} }} }}'
 
 COOL_ZONE_ON = '{{"CGOM": {{"Z{zone}O": {{"UE": "Y" }} }} }}'
 COOL_ZONE_OFF = '{{"CGOM": {{"Z{zone}O": {{"UE": "N" }} }} }}'
@@ -57,6 +62,7 @@ COOL_ZONE_SET_TEMP = '{{"CGOM": {{"Z{zone}O": {{"SP": "{temp}" }} }} }}'
 COOL_ZONE_SET_MANUAL = '{{"CGOM": {{"Z{zone}O": {{"OP": "M" }} }} }}'
 COOL_ZONE_SET_AUTO = '{{"CGOM": {{"Z{zone}O": {{"OP": "A" }} }} }}'
 COOL_ZONE_ADVANCE = '{{"CGOM": {{"Z{zone}O": {{"AO": "A" }} }} }}'
+COOL_ZONE_ADVANCE_CANCEL = '{{"CGOM": {{"Z{zone}O": {{"AO": "N" }} }} }}'
 
 COOL_COMMANDS = [
     COOL_ON_CMD,
@@ -68,10 +74,12 @@ COOL_COMMANDS = [
     COOL_SET_MANUAL,
     COOL_SET_AUTO,
     COOL_ADVANCE,
+    COOL_ADVANCE_CANCEL,
     COOL_ZONE_SET_TEMP,
     COOL_ZONE_SET_MANUAL,
     COOL_ZONE_SET_AUTO,
     COOL_ZONE_ADVANCE,
+    COOL_ZONE_ADVANCE_CANCEL,
     COOL_CIRC_FAN_SPEED
 ]
 

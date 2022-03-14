@@ -20,10 +20,12 @@ from .commands import (
     HEAT_SET_MANUAL,
     HEAT_SET_AUTO,
     HEAT_ADVANCE,
+    HEAT_ADVANCE_CANCEL,
     HEAT_ZONE_SET_TEMP,
     HEAT_ZONE_SET_MANUAL,
     HEAT_ZONE_SET_AUTO,
     HEAT_ZONE_ADVANCE,
+    HEAT_ZONE_ADVANCE_CANCEL,
     HEAT_CIRC_FAN_SPEED,
     COOL_ON_CMD,
     COOL_OFF_CMD,
@@ -34,10 +36,12 @@ from .commands import (
     COOL_SET_MANUAL,
     COOL_SET_AUTO,
     COOL_ADVANCE,
+    COOL_ADVANCE_CANCEL,
     COOL_ZONE_SET_TEMP,
     COOL_ZONE_SET_MANUAL,
     COOL_ZONE_SET_AUTO,
     COOL_ZONE_ADVANCE,
+    COOL_ZONE_ADVANCE_CANCEL,
     COOL_CIRC_FAN_SPEED,
     EVAP_ON_CMD,
     EVAP_OFF_CMD,
@@ -362,6 +366,10 @@ class RinnaiSystem:
         """Press advance button in heater mode."""
         return await self.validate_and_send(HEAT_ADVANCE)
 
+    async def heater_advance_cancel(self):
+        """Press advance cancel button in heater mode."""
+        return await self.validate_and_send(HEAT_ADVANCE_CANCEL)
+
     async def turn_heater_zone_on(self, zone):
         """Turn a zone on in heating mode."""
         cmd=HEAT_ZONE_ON
@@ -410,6 +418,14 @@ class RinnaiSystem:
             return True
         return False
 
+    async def set_heater_zone_advance_cancel(self, zone):
+        """Press zone advance cacnel button in heater mode."""
+        cmd=HEAT_ZONE_ADVANCE_CANCEL
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
     async def turn_cooling_on(self):
         """Turn cooling on (and system)."""
         return await self.validate_and_send(COOL_ON_CMD)
@@ -441,6 +457,10 @@ class RinnaiSystem:
     async def cooling_advance(self):
         """Press advance button in cooling mode."""
         return await self.validate_and_send(COOL_ADVANCE)
+
+    async def cooling_advance_cancel(self):
+        """Press advance cancel button in cooling mode."""
+        return await self.validate_and_send(COOL_ADVANCE_CANCEL)
 
     async def turn_cooling_zone_on(self, zone):
         """Turn zone on in cooling mode."""
@@ -485,6 +505,14 @@ class RinnaiSystem:
     async def set_cooling_zone_advance(self, zone):
         """Press advance button in a zone in cooling mode."""
         cmd=COOL_ZONE_ADVANCE
+        if self.validate_command(cmd):
+            await self.send_command(cmd.format(zone=zone))
+            return True
+        return False
+
+    async def set_cooling_zone_advance_cancel(self, zone):
+        """Press advance cancel button in a zone in cooling mode."""
+        cmd=COOL_ZONE_ADVANCE_CANCEL
         if self.validate_command(cmd):
             await self.send_command(cmd.format(zone=zone))
             return True

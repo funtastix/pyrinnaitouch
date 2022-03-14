@@ -32,6 +32,7 @@ def handle_cooling_mode(j,brivis_status):
     else:
         brivis_status.cooling_status.schedule_period = None
         brivis_status.cooling_status.advance_period = None
+        brivis_status.cooling_status.advanced = False
 
         switch = get_attribute(oop,"ST",None)
         if switch == "N":
@@ -60,6 +61,8 @@ def handle_cooling_mode(j,brivis_status):
                 set_temp = get_attribute(gso,"SP",None)
                 _LOGGER.debug("Cooling set temp is: %s", set_temp)
                 brivis_status.cooling_status.set_temp = int(set_temp)
+
+                brivis_status.cooling_status.set_advanced(get_attribute(gso,"AO",None))
 
                 gss = get_attribute(j[1].get("HGOM"),"GSS",None)
                 if not gss:
@@ -128,6 +131,8 @@ def handle_cooling_mode(j,brivis_status):
 
 class CoolingStatus():
     """Cooling function status"""
+    # pylint: disable=too-many-instance-attributes
+
     cooling_on = False
     fan_speed = 0
     circulation_fan_on = False
@@ -138,6 +143,7 @@ class CoolingStatus():
     temperature = 999
     schedule_period = None
     advance_period = None
+    advanced = False
 
     #zones
     zones = []
@@ -183,3 +189,10 @@ class CoolingStatus():
             self.circulation_fan_on = True
         else:
             self.circulation_fan_on = False
+
+    def set_advanced(self,status_str):
+        """Set advanced state."""
+        # A = Advance, N = None, O = Operation (what is that?)
+        if status_str == "A":
+            self.advanced = True
+        self.advanced = False
