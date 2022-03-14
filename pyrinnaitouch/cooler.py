@@ -58,7 +58,7 @@ def handle_cooling_mode(j,brivis_status):
                 _LOGGER.debug("Cooling set temp is: %s", set_temp)
                 brivis_status.cooling_status.set_temp = int(set_temp)
 
-        elif switch == "Y":
+        elif switch == "F":
             # Cooling is off
             _LOGGER.debug("Cooling is OFF")
             brivis_status.system_on = False
