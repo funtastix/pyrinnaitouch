@@ -64,7 +64,7 @@ def handle_cooling_mode(j,brivis_status):
 
                 brivis_status.cooling_status.set_advanced(get_attribute(gso,"AO",None))
 
-                gss = get_attribute(j[1].get("HGOM"),"GSS",None)
+                gss = get_attribute(j[1].get("CGOM"),"GSS",None)
                 if not gss:
                     _LOGGER.error("No GSS here")
                 else:
