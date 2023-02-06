@@ -5,6 +5,8 @@ import time
 import json
 import re
 import asyncio
+import threading
+import queue
 from enum import Enum
 from dataclasses import dataclass
 from .heater import handle_heating_mode, HeaterStatus
@@ -69,6 +71,14 @@ from .commands import (
 from .util import get_attribute, y_n_to_bool
 
 _LOGGER = logging.getLogger(__name__)
+
+def daemonthreaded(fn):
+    def wrapper(*args, **kwargs):
+        thread = threading.Thread(target=fn, args=args, kwargs=kwargs)
+        thread.setDaemon(True)
+        thread.start()
+        return thread
+    return wrapper
 
 class Event():
     """Simple event class."""
@@ -170,12 +180,15 @@ class RinnaiSystem:
         self._zones = []
         self._jsonerrors = 0
         self._nosendupdates = 0
+        self._senderqueue = queue.Queue()
+        self._receiverqueue = queue.Queue()
         if ip_address not in RinnaiSystem.clients:
             RinnaiSystem.clients[ip_address] = self._client
         else:
             self._client = RinnaiSystem.clients[ip_address]
         RinnaiSystem.instances[ip_address] = self
         self._on_updated = Event()
+        #TODO: start the loop (need to turn off polling)
 
     def set_zones(self, zones):
         """Set the active zones in the system."""
@@ -196,52 +209,130 @@ class RinnaiSystem:
         """Unsubscribe from updates received when the system status refreshes."""
         self._on_updated -= obj_method
 
-    async def receive_data(self, timeout=5):
-        """Receive data and read until all buffer is read."""
-        total_data = []
-        data = ''
-        nodata = False
+    @daemonthreaded
+    def receiver(self):
+        lastdata = ''
+        counter = 0
 
-        begin = time.time()
-        while 1:
+        while True:
+            counter+=1
+            # send next message if any
             try:
-                data = self._client.recv(4096)
-                if data and (len(data) > 0):
-                    total_data.append(data)
-                else:
-                    nodata = True
-            except: # pylint: disable=bare-except
-                pass
+                message = self._senderqueue.get(False)
+                self._client.sendall(message)
+                c = 0
+            except ConnectionError as connerr:
+                _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
+                self.renew_connection()
+            except queue.Empty:
+                None
 
-            if time.time()-begin > timeout or nodata:
-                break
+            #send empty command ever so often
+            try:
+                self._client.sendall("NA")
+            except ConnectionError as connerr:
+                _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
+                self.renew_connection()
 
-        return b"".join(total_data)
+            #receive status
+            try:
+                temp = self._client.recv(8096)
+                if temp:
+                    data = temp
+                    exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(data)) # pylint: disable=anomalous-backslash-in-string
+                    seq = int(exp.group(1))
+                    if seq >= 255:
+                        seq = 0
+                    else:
+                        seq = seq + 1
+                    self._send_sequence = seq
+                    json_str = exp.group(2)
+                    _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
+                    if json_str != lastdata:
+                        status_json = json.loads(json_str)
+                        self._receiverqueue.put(status_json)
+                        lastdata = json_str
+            except ConnectionError as connerr:
+                _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
+                _LOGGER.debug("Client shutting down")
+                self._client.shutdown(socket.SHUT_RDWR)
+                self._client.close()
+                self._lastclosed = time.time()
+                self.renew_connection()
 
-    async def handle_status(self, brivis_status):
+    @daemonthreaded
+    def poll_loop(self):
+        #create the first connection
+        self.renew_connection()
+        #start the receiver thread
+        self.receiver()
+
+        #enter loop, wait for received (new) messages and push them to hass
+        while True:
+            new_status = self._receiverqueue.get()
+            if new_status:
+                status = BrivisStatus()
+                res = self.handle_status(status, new_status)
+                if res:
+                    self._status = status
+                    self._on_updated()
+
+    def renew_connection(self):
+        """Safely renew the connection if it is disconnected."""
+        connection_error = False
+        try:
+            if self._client is not None:
+                if (
+                    self._client.getpeername
+                    and self._client.getpeername() is not None
+                    and self._jsonerrors < 4
+                ):
+                    return True
+        except (OSError, ConnectionError) as ocerr:
+            _LOGGER.debug("Error 1st phase during renewConnection %s", ocerr)
+            connection_error = True
+
+        if (
+            self._client is None
+            or self._client._closed # pylint: disable=protected-access
+            or connection_error
+            or (self._jsonerrors > 2)
+        ):
+            try:
+                if connection_error or (self._jsonerrors > 2):
+                    self._client.close()
+                self._jsonerrors = 0
+                self.connect_to_touch(self._touch_ip,self._touch_port)
+                RinnaiSystem.clients[self._touch_ip] = self._client
+                return True
+            except ConnectionRefusedError as crerr:
+                _LOGGER.debug("Error during renewConnection %s", crerr)
+            except ConnectionError as cerr:
+                _LOGGER.debug("Error during renewConnection %s", cerr)
+            except Exception as eerr: # pylint: disable=broad-except
+                _LOGGER.debug("Error during renewConnection %s", eerr)
+        return False
+
+    def connect_to_touch(self, touch_ip, port):
+        """Connect the client."""
+        # create an ipv4 (AF_INET) socket object using the tcp protocol (SOCK_STREAM)
+        _LOGGER.debug("Creating new client...")
+        try:
+            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client.settimeout(10)
+            client.connect((touch_ip, port))
+            self._client = client
+        except ConnectionRefusedError as crerr:
+            raise crerr
+            #should really take a few hours break to recover!
+
+    def handle_status(self, brivis_status, status_json):
         """Handle the JSON response from the system."""
         # pylint: disable=too-many-branches,too-many-statements
-        # Make sure enough time passed to get a status message
-        await asyncio.sleep(1.5)
-        #status = client.recv(4096)
-        #_LOGGER.debug(status)
 
         try:
-            status = await self.receive_data(2)
             #jStr = status[14:]
-            exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(status)) # pylint: disable=anomalous-backslash-in-string
-            seq = int(exp.group(1))
-            if seq >= 255:
-                seq = 0
-            else:
-                seq = seq + 1
-            self._send_sequence = seq
-            json_str = exp.group(2)
-            _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
-
-            j = json.loads(json_str)
             #_LOGGER.debug(json.dumps(j[0], indent = 4))
-
             cfg = get_attribute(j[0].get("SYST"),"CFG",None)
             if not cfg:
                 # Probably an error
@@ -306,20 +397,9 @@ class RinnaiSystem:
             else:
                 _LOGGER.debug("Unknown mode")
             return True
-        except ConnectionError as connerr:
-            _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
-            _LOGGER.debug("Client shutting down")
-            self._client.shutdown(socket.SHUT_RDWR)
-            self._client.close()
-            self._lastclosed = time.time()
-            return False
         except Exception as err: # pylint: disable=broad-except
             _LOGGER.error("Couldn't decode JSON (exception), skipping (%s)", repr(err))
             self._jsonerrors = self._jsonerrors + 1
-            #_LOGGER.debug("Client shutting down")
-            #self._client.shutdown(socket.SHUT_RDWR)
-            #self._client.close()
-            #self._lastclosed = time.time()
             return False
 
     async def set_cooling_mode(self):
@@ -630,61 +710,12 @@ class RinnaiSystem:
             return True
         return False
 
-    async def renew_connection(self):
-        """Safely renew the connection if it is disconnected."""
-        connection_error = False
-        try:
-            if self._client is not None:
-                if (
-                    self._client.getpeername
-                    and self._client.getpeername() is not None
-                    and self._jsonerrors < 4
-                ):
-                    return True
-        except (OSError, ConnectionError) as ocerr:
-            _LOGGER.debug("Error 1st phase during renewConnection %s", ocerr)
-            connection_error = True
-
-        if (
-            self._client is None
-            or self._client._closed # pylint: disable=protected-access
-            or connection_error
-            or (self._jsonerrors > 2)
-        ):
-            try:
-                if connection_error or (self._jsonerrors > 2):
-                    self._client.close()
-                self._jsonerrors = 0
-                await self.connect_to_touch(self._touch_ip,self._touch_port)
-                RinnaiSystem.clients[self._touch_ip] = self._client
-                return True
-            except ConnectionRefusedError as crerr:
-                _LOGGER.debug("Error during renewConnection %s", crerr)
-            except ConnectionError as cerr:
-                _LOGGER.debug("Error during renewConnection %s", cerr)
-            except Exception as eerr: # pylint: disable=broad-except
-                _LOGGER.debug("Error during renewConnection %s", eerr)
-        return False
-
     async def send_command(self, cmd):
         """Send the command to the unit."""
-        if await self.renew_connection():
-            _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
-
-            seq = str(self._send_sequence).zfill(6)
-            #self._sendSequence = self._sendSequence + 1
-            _LOGGER.debug("Sending command: %s", "N" + seq + cmd)
-            await self.send_to_touch("N" + seq + cmd)
-            status = BrivisStatus()
-            res = await self.handle_status(status)
-            if res:
-                self._status = status
-                self._on_updated()
-        else:
-            _LOGGER.debug("renewing connection failed, not sending command")
-
-        #self._client.shutdown(socket.SHUT_RDWR)
-        #self._client.close()
+        seq = str(self._send_sequence).zfill(6)
+        #self._sendSequence = self._sendSequence + 1
+        _LOGGER.debug("Sending command: %s", "N" + seq + cmd)
+        await self.send_to_touch("N" + seq + cmd)
 
     async def validate_and_send(self, cmd):
         """Validate and send a command."""
@@ -695,39 +726,12 @@ class RinnaiSystem:
         return False
 
     async def get_status(self):
-        """Retrieve the latest status from the unit."""
-        #every 5 updates, blindly send an empty command to maintain the connection
-        self._nosendupdates = self._nosendupdates + 1
-        if self._nosendupdates > 5:
-            self._nosendupdates = 0
-            try:
-                _LOGGER.debug("sending empty command")
-                await self.send_to_touch("NA")
-                _LOGGER.debug("sent empty command")
-            except Exception as err: # pylint: disable=broad-except
-                _LOGGER.debug("Empty command exception: %s", err)
-
+        """Retrieve initial empty status from the unit."""
         if await self.renew_connection():
-            status = BrivisStatus()
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
-            res = await self.handle_status(status)
-            if res:
-                self._status = status
-                self._on_updated()
-
-            # don't shut down unless last shutdown is 1 hour ago
-            if self._lastclosed == 0:
-                self._lastclosed = time.time()
-            if self._lastclosed + 3600 < time.time():
-                _LOGGER.debug("Client shutting down")
-                self._client.shutdown(socket.SHUT_RDWR)
-                self._client.close()
-                self._lastclosed = time.time()
-
-            self._lastupdated = time.time()
-
+            self.poll_loop()
         else:
-            _LOGGER.debug("renewing connection failed, not sending command")
+            _LOGGER.debug("renewing connection failed, ooops")
 
         return self._status
 
@@ -739,20 +743,7 @@ class RinnaiSystem:
         except: # pylint: disable=bare-except
             _LOGGER.debug("Nothing to close")
 
-    async def connect_to_touch(self, touch_ip, port):
-        """Connect the client."""
-        # create an ipv4 (AF_INET) socket object using the tcp protocol (SOCK_STREAM)
-        _LOGGER.debug("Creating new client...")
-        try:
-            client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client.settimeout(10)
-            client.connect((touch_ip, port))
-            self._client = client
-        except ConnectionRefusedError as crerr:
-            raise crerr
-            #should really take a few hours break to recover!
-
     async def send_to_touch(self, cmd):
         """Send the command."""
         #_LOGGER.debug("DEBUG: {}".format(cmd))
-        self._client.sendall(cmd.encode())
+        self._senderqueue.put(cmd.encode())
