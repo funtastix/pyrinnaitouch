@@ -213,15 +213,20 @@ class RinnaiSystem:
         """Main send and receive thread to process and send messages."""
         lastdata = ''
         counter = 0
+        #flag to ensure new status is received before sending next command
+        statusreset = True
 
         while True:
             counter+=1
             # send next message if any
             try:
-                message = self._senderqueue.get(False)
-                self._client.sendall(message)
-                _LOGGER.error("Fired off command: (%s)", message.decode())
-                counter = 0
+                if statusreset:
+                    message = self._senderqueue.get(False)
+                    self._client.sendall(message)
+                    self._send_sequence += 1
+                    statusreset = False
+                    _LOGGER.error("Fired off command: (%s)", message.decode())
+                    counter = 0
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
                 self.renew_connection()
@@ -233,6 +238,7 @@ class RinnaiSystem:
                 try:
                     cmd = "NA"
                     self._client.sendall(cmd.encode())
+                    statusreset = False
                     counter = 0
                 except ConnectionError as connerr:
                     _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
@@ -243,6 +249,7 @@ class RinnaiSystem:
                 temp = self._client.recv(8096)
                 if temp:
                     #_LOGGER.debug("Received data: (%s)", temp.decode())
+                    statusreset = True
                     data = temp
                     exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(data)) # pylint: disable=anomalous-backslash-in-string
                     seq = int(exp.group(1))
