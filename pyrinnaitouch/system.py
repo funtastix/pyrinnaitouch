@@ -241,6 +241,7 @@ class RinnaiSystem:
             try:
                 temp = self._client.recv(8096)
                 if temp:
+                    _LOGGER.error("Received data: (%s)", str(temp))
                     data = temp
                     exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(data)) # pylint: disable=anomalous-backslash-in-string
                     seq = int(exp.group(1))
