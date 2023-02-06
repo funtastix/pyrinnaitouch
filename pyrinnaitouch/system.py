@@ -740,7 +740,7 @@ class RinnaiSystem:
         else:
             _LOGGER.debug("renewing connection failed, ooops")
 
-        return self._status
+        #return self._status
 
     async def async_will_remove_from_hass(self):
         """Call this when removing the integration from home assistant."""
