@@ -231,7 +231,8 @@ class RinnaiSystem:
 
             #send empty command ever so often
             try:
-                self._client.sendall("NA")
+                cmd = "NA"
+                self._client.sendall(cmd.encode())
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
                 self.renew_connection()
