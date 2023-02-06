@@ -188,7 +188,6 @@ class RinnaiSystem:
             self._client = RinnaiSystem.clients[ip_address]
         RinnaiSystem.instances[ip_address] = self
         self._on_updated = Event()
-        #TODO: start the loop (need to turn off polling)
 
     def set_zones(self, zones):
         """Set the active zones in the system."""
@@ -211,6 +210,7 @@ class RinnaiSystem:
 
     @daemonthreaded
     def receiver(self):
+        """Main send and receive thread to process and send messages."""
         lastdata = ''
         counter = 0
 
@@ -262,6 +262,7 @@ class RinnaiSystem:
 
     @daemonthreaded
     def poll_loop(self):
+        """Main poll thread to receive updated messages from the unit."""
         #create the first connection
         self.renew_connection()
         #start the receiver thread
@@ -304,6 +305,7 @@ class RinnaiSystem:
                 self._jsonerrors = 0
                 self.connect_to_touch(self._touch_ip,self._touch_port)
                 RinnaiSystem.clients[self._touch_ip] = self._client
+                _LOGGER.debug("Connected to %s", self._client.getpeername())
                 return True
             except ConnectionRefusedError as crerr:
                 _LOGGER.debug("Error during renewConnection %s", crerr)
@@ -727,7 +729,7 @@ class RinnaiSystem:
 
     async def get_status(self):
         """Retrieve initial empty status from the unit."""
-        if await self.renew_connection():
+        if self.renew_connection():
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
             self.poll_loop()
         else:
