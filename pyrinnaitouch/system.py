@@ -241,7 +241,7 @@ class RinnaiSystem:
             try:
                 temp = self._client.recv(8096)
                 if temp:
-                    _LOGGER.debug("Received data: (%s)", temp.decode())
+                    #_LOGGER.debug("Received data: (%s)", temp.decode())
                     data = temp
                     exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(data)) # pylint: disable=anomalous-backslash-in-string
                     seq = int(exp.group(1))
@@ -251,8 +251,8 @@ class RinnaiSystem:
                         seq = seq + 1
                     self._send_sequence = seq
                     json_str = exp.group(2)
-                    _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
                     if json_str != lastdata:
+                        _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
                         status_json = json.loads(json_str)
                         self._receiverqueue.put(status_json)
                         lastdata = json_str
