@@ -211,6 +211,7 @@ class RinnaiSystem:
     @daemonthreaded
     def receiver(self):
         """Main send and receive thread to process and send messages."""
+        # pylint: disable=too-many-statements
         lastdata = ''
         counter = 0
         #flag to ensure new status is received before sending next command
@@ -225,7 +226,6 @@ class RinnaiSystem:
                     self._client.sendall(message)
                     self._send_sequence += 1
                     statusreset = False
-                    _LOGGER.error("Fired off command: (%s)", message.decode())
                     counter = 0
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
