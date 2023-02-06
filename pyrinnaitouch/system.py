@@ -1,4 +1,6 @@
 ﻿"""Main system control"""
+import asyncio
+from cgitb import reset
 import logging
 import socket
 import time
@@ -728,9 +730,11 @@ class RinnaiSystem:
         _LOGGER.error("Validation of command failed. Not sending")
         return False
 
-    def get_status(self):
+    async def get_status(self):
         """Retrieve initial empty status from the unit."""
-        if self.renew_connection():
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, self.renew_connection)
+        if result:
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
             self.poll_loop()
         else:
