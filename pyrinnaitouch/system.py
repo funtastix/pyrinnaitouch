@@ -4,7 +4,6 @@ import socket
 import time
 import json
 import re
-import asyncio
 import threading
 import queue
 from enum import Enum
@@ -72,9 +71,10 @@ from .util import get_attribute, y_n_to_bool
 
 _LOGGER = logging.getLogger(__name__)
 
-def daemonthreaded(fn):
+def daemonthreaded(function_arg):
+    """Decoration to start object function as thread"""
     def wrapper(*args, **kwargs):
-        thread = threading.Thread(target=fn, args=args, kwargs=kwargs)
+        thread = threading.Thread(target=function_arg, args=args, kwargs=kwargs)
         thread.setDaemon(True)
         thread.start()
         return thread
@@ -220,12 +220,12 @@ class RinnaiSystem:
             try:
                 message = self._senderqueue.get(False)
                 self._client.sendall(message)
-                c = 0
+                counter = 0
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
                 self.renew_connection()
             except queue.Empty:
-                None
+                None # pylint: disable=pointless-statement
 
             #send empty command ever so often
             try:
@@ -335,7 +335,7 @@ class RinnaiSystem:
         try:
             #jStr = status[14:]
             #_LOGGER.debug(json.dumps(j[0], indent = 4))
-            cfg = get_attribute(j[0].get("SYST"),"CFG",None)
+            cfg = get_attribute(status_json[0].get("SYST"),"CFG",None)
             if not cfg:
                 # Probably an error
                 _LOGGER.error("No CFG - Not happy, Jan")
@@ -354,7 +354,7 @@ class RinnaiSystem:
                 brivis_status.firmware_version = get_attribute(cfg, "VR", None).strip()
                 brivis_status.wifi_module_version = get_attribute(cfg, "CV", None).strip()
 
-            avm = get_attribute(j[0].get("SYST"),"AVM",None)
+            avm = get_attribute(status_json[0].get("SYST"),"AVM",None)
             if not avm:
                 # Probably an error
                 _LOGGER.error("No AVM - Not happy, Jan")
@@ -373,7 +373,7 @@ class RinnaiSystem:
                 else:
                     brivis_status.has_evap = False
 
-            flt = get_attribute(j[0].get("SYST"), "FLT", None)
+            flt = get_attribute(status_json[0].get("SYST"), "FLT", None)
             if not avm:
                 # Probably an error
                 _LOGGER.error("No FLT - Not happy, Jan")
@@ -381,18 +381,18 @@ class RinnaiSystem:
             else:
                 brivis_status.has_fault = y_n_to_bool(get_attribute(flt, "AV", None))
 
-            if 'HGOM' in j[1]:
-                handle_heating_mode(j,brivis_status)
+            if 'HGOM' in status_json[1]:
+                handle_heating_mode(status_json,brivis_status)
                 brivis_status.set_mode(Mode.HEATING)
                 _LOGGER.debug("We are in HEAT mode")
 
-            elif 'CGOM' in j[1]:
-                handle_cooling_mode(j,brivis_status)
+            elif 'CGOM' in status_json[1]:
+                handle_cooling_mode(status_json,brivis_status)
                 brivis_status.set_mode(Mode.COOLING)
                 _LOGGER.debug("We are in COOL mode")
 
-            elif 'ECOM' in j[1]:
-                handle_evap_mode(j,brivis_status)
+            elif 'ECOM' in status_json[1]:
+                handle_evap_mode(status_json,brivis_status)
                 brivis_status.set_mode(Mode.EVAP)
                 _LOGGER.debug("We are in EVAP mode")
 
