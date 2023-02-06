@@ -326,6 +326,7 @@ class RinnaiSystem:
             client.settimeout(10)
             client.connect((touch_ip, port))
             self._client = client
+            _LOGGER.debug("Client connection created: %s", self._client.getpeername())
         except ConnectionRefusedError as crerr:
             _LOGGER.debug("Client refused connection: %s", crerr)
             raise crerr
@@ -732,11 +733,9 @@ class RinnaiSystem:
 
     async def get_status(self):
         """Retrieve initial empty status from the unit."""
-        _LOGGER.debug("Client Variable 1: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
         loop = asyncio.get_event_loop()
-        _LOGGER.debug("Client Variable 2: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
         result = await loop.run_in_executor(None, self.renew_connection)
-        _LOGGER.debug("Client Variable 3: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
+        _LOGGER.info("Client Variable info: %s", self._client) # pylint: disable=protected-access
         if result:
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
             self.poll_loop()
