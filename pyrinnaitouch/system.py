@@ -231,12 +231,14 @@ class RinnaiSystem:
                 None # pylint: disable=pointless-statement
 
             #send empty command ever so often
-            try:
-                cmd = "NA"
-                self._client.sendall(cmd.encode())
-            except ConnectionError as connerr:
-                _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
-                self.renew_connection()
+            if counter > 10:
+                try:
+                    cmd = "NA"
+                    self._client.sendall(cmd.encode())
+                    counter = 0
+                except ConnectionError as connerr:
+                    _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
+                    self.renew_connection()
 
             #receive status
             try:
