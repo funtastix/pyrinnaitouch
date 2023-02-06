@@ -1,6 +1,4 @@
 ﻿"""Main system control"""
-import asyncio
-from cgitb import reset
 import logging
 import socket
 import time
