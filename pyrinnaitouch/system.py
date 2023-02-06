@@ -728,7 +728,7 @@ class RinnaiSystem:
         _LOGGER.error("Validation of command failed. Not sending")
         return False
 
-    async def get_status(self):
+    def get_status(self):
         """Retrieve initial empty status from the unit."""
         if self.renew_connection():
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
