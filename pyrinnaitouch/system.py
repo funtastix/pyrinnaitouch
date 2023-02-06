@@ -241,7 +241,7 @@ class RinnaiSystem:
             try:
                 temp = self._client.recv(8096)
                 if temp:
-                    _LOGGER.error("Received data: (%s)", str(temp))
+                    _LOGGER.debug("Received data: (%s)", temp.decode())
                     data = temp
                     exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(data)) # pylint: disable=anomalous-backslash-in-string
                     seq = int(exp.group(1))
@@ -263,6 +263,8 @@ class RinnaiSystem:
                 self._client.close()
                 self._lastclosed = time.time()
                 self.renew_connection()
+            except AttributeError as atterr:
+                _LOGGER.error("Couldn't decode JSON (probably HELLO), skipping (%s)", repr(atterr))
 
     @daemonthreaded
     def poll_loop(self):
@@ -737,7 +739,6 @@ class RinnaiSystem:
         """Retrieve initial empty status from the unit."""
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, self.renew_connection)
-        _LOGGER.info("Client Variable info: %s", self._client) # pylint: disable=protected-access
         if result:
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
             self.poll_loop()
