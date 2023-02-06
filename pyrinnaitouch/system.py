@@ -222,6 +222,7 @@ class RinnaiSystem:
             try:
                 message = self._senderqueue.get(False)
                 self._client.sendall(message)
+                _LOGGER.error("Fired off command: (%s)", message.decode())
                 counter = 0
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
@@ -414,57 +415,57 @@ class RinnaiSystem:
 
     async def set_cooling_mode(self):
         """Set system to cooling mode."""
-        return await self.validate_and_send(MODE_COOL_CMD)
+        return self.validate_and_send(MODE_COOL_CMD)
 
     async def set_evap_mode(self):
         """Set system to evap mode."""
-        return await self.validate_and_send(MODE_EVAP_CMD)
+        return self.validate_and_send(MODE_EVAP_CMD)
 
     async def set_heater_mode(self):
         """Set system to heater mode."""
-        return await self.validate_and_send(MODE_HEAT_CMD)
+        return self.validate_and_send(MODE_HEAT_CMD)
 
     async def turn_heater_on(self):
         """Turn heater on (and system)."""
-        return await self.validate_and_send(HEAT_ON_CMD)
+        return self.validate_and_send(HEAT_ON_CMD)
 
     async def turn_heater_off(self):
         """Turn heater off (and system)."""
-        return await self.validate_and_send(HEAT_OFF_CMD)
+        return self.validate_and_send(HEAT_OFF_CMD)
 
     async def turn_heater_fan_only(self):
         """Turn circ fan on in heating mode while system is off."""
-        return await self.validate_and_send(HEAT_CIRC_FAN_ON)
+        return self.validate_and_send(HEAT_CIRC_FAN_ON)
 
     async def set_heater_temp(self, temp):
         """Set target temperature in heating mode."""
         cmd=HEAT_SET_TEMP
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(temp=temp))
+            self.send_command(cmd.format(temp=temp))
             return True
         return False
 
     async def set_heater_auto(self):
         """Set to auto mode in heater."""
-        return await self.validate_and_send(HEAT_SET_AUTO)
+        return self.validate_and_send(HEAT_SET_AUTO)
 
     async def set_heater_manual(self):
         """Set to manual mode in heater."""
-        return await self.validate_and_send(HEAT_SET_MANUAL)
+        return self.validate_and_send(HEAT_SET_MANUAL)
 
     async def heater_advance(self):
         """Press advance button in heater mode."""
-        return await self.validate_and_send(HEAT_ADVANCE)
+        return self.validate_and_send(HEAT_ADVANCE)
 
     async def heater_advance_cancel(self):
         """Press advance cancel button in heater mode."""
-        return await self.validate_and_send(HEAT_ADVANCE_CANCEL)
+        return self.validate_and_send(HEAT_ADVANCE_CANCEL)
 
     async def turn_heater_zone_on(self, zone):
         """Turn a zone on in heating mode."""
         cmd=HEAT_ZONE_ON
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -472,7 +473,7 @@ class RinnaiSystem:
         """Turn a zone off in heating mode."""
         cmd=HEAT_ZONE_OFF
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -480,7 +481,7 @@ class RinnaiSystem:
         """Set target temperature for a zone in heating mode."""
         cmd=HEAT_ZONE_SET_TEMP
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone, temp=temp))
+            self.send_command(cmd.format(zone=zone, temp=temp))
             return True
         return False
 
@@ -488,7 +489,7 @@ class RinnaiSystem:
         """Set zone to auto mode in heating."""
         cmd=HEAT_ZONE_SET_AUTO
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -496,7 +497,7 @@ class RinnaiSystem:
         """Set zone to manual mode in heating."""
         cmd=HEAT_ZONE_SET_MANUAL
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -504,7 +505,7 @@ class RinnaiSystem:
         """Press zone advance button in heater mode."""
         cmd=HEAT_ZONE_ADVANCE
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -512,51 +513,51 @@ class RinnaiSystem:
         """Press zone advance cacnel button in heater mode."""
         cmd=HEAT_ZONE_ADVANCE_CANCEL
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
     async def turn_cooling_on(self):
         """Turn cooling on (and system)."""
-        return await self.validate_and_send(COOL_ON_CMD)
+        return self.validate_and_send(COOL_ON_CMD)
 
     async def turn_cooling_off(self):
         """Turn cooling off (and system)."""
-        return await self.validate_and_send(COOL_OFF_CMD)
+        return self.validate_and_send(COOL_OFF_CMD)
 
     async def turn_cooling_fan_only(self):
         """Turn circ fan on (fan only) in cooling mode while system off."""
-        return await self.validate_and_send(COOL_CIRC_FAN_ON)
+        return self.validate_and_send(COOL_CIRC_FAN_ON)
 
     async def set_cooling_temp(self, temp):
         """Set main target temperature in cooling mode."""
         cmd=COOL_SET_TEMP
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(temp=temp))
+            self.send_command(cmd.format(temp=temp))
             return True
         return False
 
     async def set_cooling_auto(self):
         """Set auto mode in cooling."""
-        return await self.validate_and_send(COOL_SET_AUTO)
+        return self.validate_and_send(COOL_SET_AUTO)
 
     async def set_cooling_manual(self):
         """Set manual mode in cooling."""
-        return await self.validate_and_send(COOL_SET_MANUAL)
+        return self.validate_and_send(COOL_SET_MANUAL)
 
     async def cooling_advance(self):
         """Press advance button in cooling mode."""
-        return await self.validate_and_send(COOL_ADVANCE)
+        return self.validate_and_send(COOL_ADVANCE)
 
     async def cooling_advance_cancel(self):
         """Press advance cancel button in cooling mode."""
-        return await self.validate_and_send(COOL_ADVANCE_CANCEL)
+        return self.validate_and_send(COOL_ADVANCE_CANCEL)
 
     async def turn_cooling_zone_on(self, zone):
         """Turn zone on in cooling mode."""
         cmd=COOL_ZONE_ON
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -564,7 +565,7 @@ class RinnaiSystem:
         """Turn zone off in cooling mode."""
         cmd=COOL_ZONE_OFF
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -572,7 +573,7 @@ class RinnaiSystem:
         """Set zone target temperature in cooling."""
         cmd=COOL_ZONE_SET_TEMP
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone, temp=temp))
+            self.send_command(cmd.format(zone=zone, temp=temp))
             return True
         return False
 
@@ -580,7 +581,7 @@ class RinnaiSystem:
         """Set zone to auto mode in cooling."""
         cmd=COOL_ZONE_SET_AUTO
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -588,7 +589,7 @@ class RinnaiSystem:
         """Set zone to manual mode in cooling."""
         cmd=COOL_ZONE_SET_MANUAL
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -596,7 +597,7 @@ class RinnaiSystem:
         """Press advance button in a zone in cooling mode."""
         cmd=COOL_ZONE_ADVANCE
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -604,47 +605,47 @@ class RinnaiSystem:
         """Press advance cancel button in a zone in cooling mode."""
         cmd=COOL_ZONE_ADVANCE_CANCEL
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
     async def turn_evap_on(self):
         """Turn on evap (and system)."""
-        return await self.validate_and_send(EVAP_ON_CMD)
+        return self.validate_and_send(EVAP_ON_CMD)
 
     async def turn_evap_off(self):
         """Turn off evap (and system)."""
-        return await self.validate_and_send(EVAP_OFF_CMD)
+        return self.validate_and_send(EVAP_OFF_CMD)
 
     async def turn_evap_pump_on(self):
         """Turn water pump on in evap mode."""
-        return await self.validate_and_send(EVAP_PUMP_ON)
+        return self.validate_and_send(EVAP_PUMP_ON)
 
     async def turn_evap_pump_off(self):
         """Turn water pump off in evap mode."""
-        return await self.validate_and_send(EVAP_PUMP_OFF)
+        return self.validate_and_send(EVAP_PUMP_OFF)
 
     async def turn_evap_fan_on(self):
         """Turn fan on in evap mode."""
-        return await self.validate_and_send(EVAP_FAN_ON)
+        return self.validate_and_send(EVAP_FAN_ON)
 
     async def turn_evap_fan_off(self):
         """Turn fan off in evap mode."""
-        return await self.validate_and_send(EVAP_FAN_OFF)
+        return self.validate_and_send(EVAP_FAN_OFF)
 
     async def set_evap_auto(self):
         """Set to auto mode in evap."""
-        return await self.validate_and_send(EVAP_SET_AUTO)
+        return self.validate_and_send(EVAP_SET_AUTO)
 
     async def set_evap_manual(self):
         """Set to manual mode in evap."""
-        return await self.validate_and_send(EVAP_SET_MANUAL)
+        return self.validate_and_send(EVAP_SET_MANUAL)
 
     async def set_evap_fanspeed(self, speed):
         """Set fan speed in evap mode."""
         cmd=EVAP_FAN_SPEED
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(speed=f'{speed:02d}'))
+            self.send_command(cmd.format(speed=f'{speed:02d}'))
             return True
         return False
 
@@ -652,7 +653,7 @@ class RinnaiSystem:
         """Set fan speed in heater mode."""
         cmd=HEAT_CIRC_FAN_SPEED
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(speed=f'{speed:02d}'))
+            self.send_command(cmd.format(speed=f'{speed:02d}'))
             return True
         return False
 
@@ -660,7 +661,7 @@ class RinnaiSystem:
         """Set fan speed in cooling mode."""
         cmd=COOL_CIRC_FAN_SPEED
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(speed=f'{speed:02d}'))
+            self.send_command(cmd.format(speed=f'{speed:02d}'))
             return True
         return False
 
@@ -668,7 +669,7 @@ class RinnaiSystem:
         """Set comfort level in Evap auto mode."""
         cmd=EVAP_SET_COMFORT
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(comfort=comfort))
+            self.send_command(cmd.format(comfort=comfort))
             return True
         return False
 
@@ -676,7 +677,7 @@ class RinnaiSystem:
         """Turn zone off in Evap mode."""
         cmd=EVAP_ZONE_ON
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -684,7 +685,7 @@ class RinnaiSystem:
         """Turn zone off in Evap mode."""
         cmd=EVAP_ZONE_OFF
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -692,7 +693,7 @@ class RinnaiSystem:
         """Set zone to Auto mode on Evap."""
         cmd=EVAP_ZONE_SET_AUTO
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -700,7 +701,7 @@ class RinnaiSystem:
         """Set zone to manual mode on Evap."""
         cmd=EVAP_ZONE_SET_MANUAL
         if self.validate_command(cmd):
-            await self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(zone=zone))
             return True
         return False
 
@@ -720,26 +721,24 @@ class RinnaiSystem:
             return True
         return False
 
-    async def send_command(self, cmd):
+    def send_command(self, cmd):
         """Send the command to the unit."""
         seq = str(self._send_sequence).zfill(6)
         #self._sendSequence = self._sendSequence + 1
         _LOGGER.debug("Sending command: %s", "N" + seq + cmd)
-        await self.send_to_touch("N" + seq + cmd)
+        self.send_to_touch("N" + seq + cmd)
 
-    async def validate_and_send(self, cmd):
+    def validate_and_send(self, cmd):
         """Validate and send a command."""
         if self.validate_command(cmd):
-            await self.send_command(cmd)
+            self.send_command(cmd)
             return True
         _LOGGER.error("Validation of command failed. Not sending")
         return False
 
-    async def get_status(self):
+    def get_status(self):
         """Retrieve initial empty status from the unit."""
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, self.renew_connection)
-        if result:
+        if self.renew_connection():
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
             self.poll_loop()
         else:
@@ -755,7 +754,7 @@ class RinnaiSystem:
         except: # pylint: disable=bare-except
             _LOGGER.debug("Nothing to close")
 
-    async def send_to_touch(self, cmd):
+    def send_to_touch(self, cmd):
         """Send the command."""
         #_LOGGER.debug("DEBUG: {}".format(cmd))
         self._senderqueue.put(cmd.encode())
