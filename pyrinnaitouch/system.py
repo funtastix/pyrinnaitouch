@@ -732,15 +732,18 @@ class RinnaiSystem:
 
     async def get_status(self):
         """Retrieve initial empty status from the unit."""
+        _LOGGER.debug("Client Variable 1: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
         loop = asyncio.get_event_loop()
+        _LOGGER.debug("Client Variable 2: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
         result = await loop.run_in_executor(None, self.renew_connection)
+        _LOGGER.debug("Client Variable 3: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
         if result:
             _LOGGER.debug("Client Variable: %s / %s", self._client, self._client._closed) # pylint: disable=protected-access
             self.poll_loop()
         else:
             _LOGGER.debug("renewing connection failed, ooops")
 
-        #return self._status
+        return self._status
 
     async def async_will_remove_from_hass(self):
         """Call this when removing the integration from home assistant."""
