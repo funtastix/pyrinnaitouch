@@ -325,6 +325,7 @@ class RinnaiSystem:
             client.connect((touch_ip, port))
             self._client = client
         except ConnectionRefusedError as crerr:
+            _LOGGER.debug("Client refused connection: %s", crerr)
             raise crerr
             #should really take a few hours break to recover!
 
