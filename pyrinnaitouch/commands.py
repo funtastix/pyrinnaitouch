@@ -12,10 +12,10 @@ HEAT_CIRC_FAN_ON = '{"HGOM": {"OOP": {"ST": "Z" } } }'
 HEAT_CIRC_FAN_SPEED = '{{"HGOM": {{"OOP": {{"FL": "{speed}" }} }} }}' # 1 - 16
 
 HEAT_SET_TEMP = '{{"HGOM": {{"GSO": {{"SP": "{temp}" }} }} }}'
-HEAT_SET_MANUAL = '{{"HGOM": {{"GSO": {{"OP": "M" }} }} }}'
-HEAT_SET_AUTO = '{{"HGOM": {{"GSO": {{"OP": "A" }} }} }}'
-HEAT_ADVANCE = '{{"HGOM": {{"GSO": {{"AO": "A" }} }} }}'
-HEAT_ADVANCE_CANCEL = '{{"HGOM": {{"GSO": {{"AO": "N" }} }} }}'
+HEAT_SET_MANUAL = '{"HGOM": {"GSO": {"OP": "M" } } }'
+HEAT_SET_AUTO = '{"HGOM": {"GSO": {"OP": "A" } } }'
+HEAT_ADVANCE = '{"HGOM": {"GSO": {"AO": "A" } } }'
+HEAT_ADVANCE_CANCEL = '{"HGOM": {"GSO": {"AO": "N" } } }'
 
 HEAT_ZONE_ON = '{{"HGOM": {{"Z{zone}O": {{"UE": "Y" }} }} }}'
 HEAT_ZONE_OFF = '{{"HGOM": {{"Z{zone}O": {{"UE": "N" }} }} }}'
@@ -51,10 +51,10 @@ COOL_CIRC_FAN_ON = '{"CGOM": {"OOP": {"ST": "Z" } } }'
 COOL_CIRC_FAN_SPEED = '{{"CGOM": {{"OOP": {{"FL": "{speed}" }} }} }}' # 1 - 16
 
 COOL_SET_TEMP = '{{"CGOM": {{"GSO": {{"SP": "{temp}" }} }} }}'
-COOL_SET_MANUAL = '{{"CGOM": {{"GSO": {{"OP": "M" }} }} }}'
-COOL_SET_AUTO = '{{"CGOM": {{"GSO": {{"OP": "A" }} }} }}'
-COOL_ADVANCE = '{{"CGOM": {{"GSO": {{"AO": "A" }} }} }}'
-COOL_ADVANCE_CANCEL = '{{"CGOM": {{"GSO": {{"AO": "N" }} }} }}'
+COOL_SET_MANUAL = '{"CGOM": {"GSO": {"OP": "M" } } }'
+COOL_SET_AUTO = '{"CGOM": {"GSO": {"OP": "A" } } }'
+COOL_ADVANCE = '{"CGOM": {"GSO": {"AO": "A" } } }'
+COOL_ADVANCE_CANCEL = '{"CGOM": {"GSO": {"AO": "N" } } }'
 
 COOL_ZONE_ON = '{{"CGOM": {{"Z{zone}O": {{"UE": "Y" }} }} }}'
 COOL_ZONE_OFF = '{{"CGOM": {{"Z{zone}O": {{"UE": "N" }} }} }}'
@@ -94,8 +94,8 @@ EVAP_FAN_ON = '{"ECOM": {"GSO": {"FS": "N" } } }'
 EVAP_FAN_OFF = '{"ECOM": {"GSO": {"FS": "F" } } }'
 EVAP_FAN_SPEED = '{{"ECOM": {{"GSO": {{"FL": "{speed}" }} }} }}' # 1 - 16
 
-EVAP_SET_MANUAL = '{{"ECOM": {{"GSO": {{"OP": "M" }} }} }}'
-EVAP_SET_AUTO = '{{"ECOM": {{"GSO": {{"OP": "A" }} }} }}'
+EVAP_SET_MANUAL = '{"ECOM": {"GSO": {"OP": "M" } } }'
+EVAP_SET_AUTO = '{"ECOM": {"GSO": {"OP": "A" } } }'
 EVAP_SET_COMFORT = '{{"ECOM": {{"GSO": {{"SP": "{comfort}" }} }} }}'
 
 EVAP_ZONE_ON = '{{"ECOM": {{"GSO": {{"Z{zone}UE": "Y" }} }} }}'
