@@ -221,6 +221,7 @@ class RinnaiSystem:
                 message = self._senderqueue.get(False)
                 self._client.sendall(message)
                 _LOGGER.error("Fired off command: (%s)", message.decode())
+                time.sleep(0.05)
                 counter = 0
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
@@ -259,7 +260,7 @@ class RinnaiSystem:
                         lastdata = json_str
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
-                _LOGGER.debug("Client shutting down")
+                #_LOGGER.debug("Client shutting down")
                 self._client.shutdown(socket.SHUT_RDWR)
                 self._client.close()
                 self._lastclosed = time.time()
@@ -383,24 +384,28 @@ class RinnaiSystem:
                     brivis_status.has_evap = False
 
             flt = get_attribute(status_json[0].get("SYST"), "FLT", None)
-            if not avm:
+            if not flt:
                 # Probably an error
                 _LOGGER.error("No FLT - Not happy, Jan")
 
             else:
                 brivis_status.has_fault = y_n_to_bool(get_attribute(flt, "AV", None))
 
-            if 'HGOM' in status_json[1]:
+            parts = []
+            for part in status_json:
+                parts.extend(part.keys())
+
+            if 'HGOM' in parts:
                 handle_heating_mode(status_json,brivis_status)
                 brivis_status.set_mode(Mode.HEATING)
                 _LOGGER.debug("We are in HEAT mode")
 
-            elif 'CGOM' in status_json[1]:
+            elif 'CGOM' in parts:
                 handle_cooling_mode(status_json,brivis_status)
                 brivis_status.set_mode(Mode.COOLING)
                 _LOGGER.debug("We are in COOL mode")
 
-            elif 'ECOM' in status_json[1]:
+            elif 'ECOM' in parts:
                 handle_evap_mode(status_json,brivis_status)
                 brivis_status.set_mode(Mode.EVAP)
                 _LOGGER.debug("We are in EVAP mode")
