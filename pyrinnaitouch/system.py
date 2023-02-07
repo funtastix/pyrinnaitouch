@@ -227,7 +227,7 @@ class RinnaiSystem:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
                 self.renew_connection()
             except queue.Empty:
-                None # pylint: disable=pointless-statement
+                pass
 
             #send empty command ever so often
             if counter > 10:
