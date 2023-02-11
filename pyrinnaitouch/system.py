@@ -211,6 +211,7 @@ class RinnaiSystem:
     @daemonthreaded
     def receiver(self):
         """Main send and receive thread to process and send messages."""
+        # pylint: disable=too-many-statements
         lastdata = ''
         counter = 0
 
@@ -265,7 +266,7 @@ class RinnaiSystem:
                 self._lastclosed = time.time()
                 self.renew_connection()
             except TimeoutError as timeouterr:
-                _LOGGER.error("Socket timed out, renewing connection", repr(timeouterr))
+                _LOGGER.error("Socket timed out, renewing connection (%s)", repr(timeouterr))
                 self._client.shutdown(socket.SHUT_RDWR)
                 self._client.close()
                 self._lastclosed = time.time()
