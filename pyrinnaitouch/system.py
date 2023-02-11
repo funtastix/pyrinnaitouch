@@ -260,7 +260,12 @@ class RinnaiSystem:
                         lastdata = json_str
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
-                #_LOGGER.debug("Client shutting down")
+                self._client.shutdown(socket.SHUT_RDWR)
+                self._client.close()
+                self._lastclosed = time.time()
+                self.renew_connection()
+            except TimeoutError as timeouterr:
+                _LOGGER.error("Socket timed out, renewing connection", repr(timeouterr))
                 self._client.shutdown(socket.SHUT_RDWR)
                 self._client.close()
                 self._lastclosed = time.time()
