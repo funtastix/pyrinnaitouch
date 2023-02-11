@@ -211,6 +211,7 @@ class RinnaiSystem:
     @daemonthreaded
     def receiver(self):
         """Main send and receive thread to process and send messages."""
+        # pylint: disable=too-many-statements
         lastdata = ''
         counter = 0
 
@@ -227,7 +228,7 @@ class RinnaiSystem:
                 _LOGGER.error("Couldn't send command (connection): (%s)", repr(connerr))
                 self.renew_connection()
             except queue.Empty:
-                None # pylint: disable=pointless-statement
+                pass
 
             #send empty command ever so often
             if counter > 10:
@@ -260,7 +261,12 @@ class RinnaiSystem:
                         lastdata = json_str
             except ConnectionError as connerr:
                 _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
-                #_LOGGER.debug("Client shutting down")
+                self._client.shutdown(socket.SHUT_RDWR)
+                self._client.close()
+                self._lastclosed = time.time()
+                self.renew_connection()
+            except TimeoutError as timeouterr:
+                _LOGGER.error("Socket timed out, renewing connection (%s)", repr(timeouterr))
                 self._client.shutdown(socket.SHUT_RDWR)
                 self._client.close()
                 self._lastclosed = time.time()
