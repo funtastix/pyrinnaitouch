@@ -1,7 +1,5 @@
 ﻿"""Heater unit handling"""
 import logging
-from multiprocessing import managers
-from tempfile import tempdir
 
 from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period, Zone
 
