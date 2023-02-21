@@ -17,7 +17,7 @@ def handle_heating_mode(j,brivis_status):
 
     else:
         if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
-            _LOGGER.DEBUG("Appending Zone A")
+            _LOGGER.debug("Appending Zone A")
             brivis_status.heater_status.zones.append("A")
         if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
             brivis_status.heater_status.zones.append("B")
