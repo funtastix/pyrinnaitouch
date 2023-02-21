@@ -75,7 +75,7 @@ def daemonthreaded(function_arg):
     """Decoration to start object function as thread"""
     def wrapper(*args, **kwargs):
         thread = threading.Thread(target=function_arg, args=args, kwargs=kwargs)
-        thread.daemon(True)
+        thread.daemon = True
         thread.start()
         return thread
     return wrapper
