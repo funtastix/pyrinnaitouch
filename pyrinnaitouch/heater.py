@@ -1,5 +1,6 @@
 ﻿"""Heater unit handling"""
 import logging
+from tempfile import tempdir
 
 from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period
 
@@ -16,6 +17,7 @@ def handle_heating_mode(j,brivis_status):
 
     else:
         if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
+            _LOGGER.DEBUG("Appending Zone A")
             brivis_status.heater_status.zones.append("A")
         if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
             brivis_status.heater_status.zones.append("B")
@@ -46,34 +48,37 @@ def handle_heating_mode(j,brivis_status):
             _LOGGER.debug("Fan Speed is: %s", fan_speed)
             brivis_status.heater_status.fan_speed = int(fan_speed) # Should catch errors!
 
-            # GSO should be there
-            gso = get_attribute(j[1].get("HGOM"),"GSO",None)
-            if not gso:
-                # Probably an error
-                _LOGGER.error("No GSO when heater on. Not happy, Jan")
+            if brivis_status.is_multi_set_point:
+                pass
             else:
-                # Heater is on - get attributes
-                op_mode = get_attribute(gso,"OP",None)
-                _LOGGER.debug("Heat OpMode is: %s", op_mode) # A = Auto, M = Manual
-                brivis_status.heater_status.set_mode(op_mode)
-
-                # Set temp?
-                set_temp = get_attribute(gso,"SP",None)
-                _LOGGER.debug("Heat set temp is: %s", set_temp)
-                brivis_status.heater_status.set_temp = int(set_temp)
-
-                brivis_status.heater_status.set_advanced(get_attribute(gso,"AO",None))
-
-                gss = get_attribute(j[1].get("HGOM"),"GSS",None)
-                if not gss:
-                    _LOGGER.error("No GSS here")
+                # GSO should be there for single set point
+                gso = get_attribute(j[1].get("HGOM"),"GSO",None)
+                if not gso:
+                    # Probably an error
+                    _LOGGER.error("No GSO when heater on. Not happy, Jan")
                 else:
-                    preheat = y_n_to_bool(get_attribute(gss,"PH",False))
-                    brivis_status.heater_status.preheating = preheat
-                    period = symbol_to_schedule_period(get_attribute(gss,"AT",None))
-                    brivis_status.heater_status.schedule_period = period
-                    period = symbol_to_schedule_period(get_attribute(gss,"AZ",None))
-                    brivis_status.heater_status.advance_period = period
+                    # Heater is on - get attributes
+                    op_mode = get_attribute(gso,"OP",None)
+                    _LOGGER.debug("Heat OpMode is: %s", op_mode) # A = Auto, M = Manual
+                    brivis_status.heater_status.set_mode(op_mode)
+
+                    # Set temp?
+                    set_temp = get_attribute(gso,"SP",None)
+                    _LOGGER.debug("Heat set temp is: %s", set_temp)
+                    brivis_status.heater_status.set_temp = int(set_temp)
+
+                    brivis_status.heater_status.set_advanced(get_attribute(gso,"AO",None))
+
+                    gss = get_attribute(j[1].get("HGOM"),"GSS",None)
+                    if not gss:
+                        _LOGGER.error("No GSS here")
+                    else:
+                        preheat = y_n_to_bool(get_attribute(gss,"PH",False))
+                        brivis_status.heater_status.preheating = preheat
+                        period = symbol_to_schedule_period(get_attribute(gss,"AT",None))
+                        brivis_status.heater_status.schedule_period = period
+                        period = symbol_to_schedule_period(get_attribute(gss,"AZ",None))
+                        brivis_status.heater_status.advance_period = period
 
         elif switch == "F":
             # Heater is off
@@ -92,45 +97,34 @@ def handle_heating_mode(j,brivis_status):
             _LOGGER.debug("Fan Speed is: %s", fan_speed)
             brivis_status.heater_status.fan_speed = int(fan_speed) # Should catch errors!
 
-        zone_a = zone_b = zone_c = zone_d = None
-        zone = get_attribute(j[1].get("HGOM"),"ZAO",None)
-        if zone:
-            zone_a = get_attribute(zone,"UE",None)
-            brivis_status.heater_status.zone_a_set_temp = get_attribute(zone,"SP", 999)
-        zone = get_attribute(j[1].get("HGOM"),"ZBO",None)
-        if zone:
-            zone_b = get_attribute(zone,"UE",None)
-            brivis_status.heater_status.zone_b_set_temp = get_attribute(zone,"SP", 999)
-        zone = get_attribute(j[1].get("HGOM"),"ZCO",None)
-        if zone:
-            zone_c = get_attribute(zone,"UE",None)
-            brivis_status.heater_status.zone_c_set_temp = get_attribute(zone,"SP", 999)
-        zone = get_attribute(j[1].get("HGOM"),"ZDO",None)
-        if zone:
-            zone_d = get_attribute(zone,"UE",None)
-            brivis_status.heater_status.zone_d_set_temp = get_attribute(zone,"SP", 999)
-        brivis_status.heater_status.set_zones(zone_a,zone_b,zone_c,zone_d)
+        for zoneid in ["a","b","c","d"]:
+            zone = get_attribute(j[1].get("HGOM"),"Z"+zoneid.upper()+"O",None)
+            if zone:
+                setattr(brivis_status.cooling_status, "zone_" + zoneid, y_n_to_bool(get_attribute(zone,"UE",None)))
+                setattr(brivis_status.cooling_status, "zone_" + zoneid + "_set_temp", get_attribute(zone,"SP", 999))
+            zone = get_attribute(j[1].get("HGOM"),"Z"+zoneid.upper()+"S",None)
+            if zone:
+                setattr(brivis_status.cooling_status, "zone_" + "_auto", y_n_to_bool(get_attribute(zone,"AE",None)))
+                setattr(brivis_status.cooling_status, "zone_" + "_temp", get_attribute(zone,"MT", 999))
 
-        zone = get_attribute(j[1].get("HGOM"),"ZAS",None)
+        zone = get_attribute(j[1].get("HGOM"),"ZUO",None)
         if zone:
-            brivis_status.heater_status.zone_a_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.heater_status.zone_a_temp = get_attribute(zone,"MT", 999)
-        zone = get_attribute(j[1].get("HGOM"),"ZBS",None)
-        if zone:
-            brivis_status.heater_status.zone_b_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.heater_status.zone_b_temp = get_attribute(zone,"MT", 999)
-        zone = get_attribute(j[1].get("HGOM"),"ZCS",None)
-        if zone:
-            brivis_status.heater_status.zone_c_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.heater_status.zone_c_temp = get_attribute(zone,"MT", 999)
-        zone = get_attribute(j[1].get("HGOM"),"ZDS",None)
-        if zone:
-            brivis_status.heater_status.zone_d_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.heater_status.zone_d_temp = get_attribute(zone,"MT", 999)
+            brivis_status.cooling_status.common_zone = y_n_to_bool(get_attribute(zone,"UE",None))
+            brivis_status.cooling_status._set_temp = get_attribute(zone,"SP", 999)
         zone = get_attribute(j[1].get("HGOM"),"ZUS",None)
         if zone:
-            brivis_status.heater_status.common_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.heater_status.temperature = get_attribute(zone,"MT", 999)
+            brivis_status.cooling_status.common_auto = y_n_to_bool(get_attribute(zone,"AE",None))
+            brivis_status.cooling_status.temperature = get_attribute(zone,"MT", 999)
+
+
+class HeaterZone():
+
+    temperature = 999
+    set_temp = 0 # < 8 means off
+    schedule_period = None
+    advance_period = None
+    advanced = False
+    user_enabled = False # applies only to fan_only
 
 class HeaterStatus():
     """Heater function status"""
@@ -142,7 +136,6 @@ class HeaterStatus():
     manual_mode = False
     auto_mode = False
     set_temp = 0
-    common_auto = False
     temperature = 999
     preheating = False
     schedule_period = None
@@ -151,22 +144,6 @@ class HeaterStatus():
 
     #zones
     zones = []
-    zone_a = False
-    zone_a_auto = False
-    zone_a_temp = 999
-    zone_a_set_temp = 999
-    zone_b = False
-    zone_b_auto = False
-    zone_b_temp = 999
-    zone_b_set_temp = 999
-    zone_c = False
-    zone_c_auto = False
-    zone_c_temp = 999
-    zone_c_set_temp = 999
-    zone_d = False
-    zone_d_auto = False
-    zone_d_temp = 999
-    zone_d_set_temp = 999
 
     def set_mode(self,mode):
         """Set auto/manual mode."""
@@ -177,14 +154,6 @@ class HeaterStatus():
         elif mode == "M":
             self.auto_mode = False
             self.manual_mode = True
-
-    def set_zones(self,zone_a,zone_b,zone_c,zone_d):
-        """Define zones."""
-        # Y = On, N = off
-        self.zone_a = y_n_to_bool(zone_a)
-        self.zone_b = y_n_to_bool(zone_b)
-        self.zone_c = y_n_to_bool(zone_c)
-        self.zone_d = y_n_to_bool(zone_d)
 
     def set_circulation_fan_on(self,status_str):
         """Set circ fan state."""

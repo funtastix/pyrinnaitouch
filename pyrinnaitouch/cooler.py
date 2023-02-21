@@ -23,6 +23,7 @@ def handle_cooling_mode(j,brivis_status):
             brivis_status.cooling_status.zones.append("C")
         if y_n_to_bool(get_attribute(cfg, "ZDIS", None)):
             brivis_status.cooling_status.zones.append("D")
+        brivis_status.cooling_status.has_common_zone = y_n_to_bool(get_attribute(cfg, "ZUIS", None))
 
     oop = get_attribute(j[1].get("CGOM"),"OOP",None)
     if not oop:
@@ -89,41 +90,20 @@ def handle_cooling_mode(j,brivis_status):
             _LOGGER.debug("Fan Speed is: %s", fan_speed)
             brivis_status.cooling_status.fan_speed = int(fan_speed) # Should catch errors!
 
-        zone_a = zone_b = zone_c = zone_d = None
-        zone = get_attribute(j[1].get("CGOM"),"ZAO",None)
-        if zone:
-            zone_a = get_attribute(zone,"UE",None)
-            brivis_status.cooling_status.zone_a_set_temp = get_attribute(zone,"SP", 999)
-        zone = get_attribute(j[1].get("CGOM"),"ZBO",None)
-        if zone:
-            zone_b = get_attribute(zone,"UE",None)
-            brivis_status.cooling_status.zone_b_set_temp = get_attribute(zone,"SP", 999)
-        zone = get_attribute(j[1].get("CGOM"),"ZCO",None)
-        if zone:
-            zone_c = get_attribute(zone,"UE",None)
-            brivis_status.cooling_status.zone_c_set_temp = get_attribute(zone,"SP", 999)
-        zone = get_attribute(j[1].get("CGOM"),"ZDO",None)
-        if zone:
-            zone_d = get_attribute(zone,"UE",None)
-            brivis_status.cooling_status.zone_d_set_temp = get_attribute(zone,"SP", 999)
-        brivis_status.cooling_status.set_zones(zone_a,zone_b,zone_c,zone_d)
+        for zoneid in ["a","b","c","d"]:
+            zone = get_attribute(j[1].get("CGOM"),"Z"+zoneid.upper()+"O",None)
+            if zone:
+                setattr(brivis_status.cooling_status, "zone_" + zoneid, y_n_to_bool(get_attribute(zone,"UE",None)))
+                setattr(brivis_status.cooling_status, "zone_" + zoneid + "_set_temp", get_attribute(zone,"SP", 999))
+            zone = get_attribute(j[1].get("CGOM"),"Z"+zoneid.upper()+"S",None)
+            if zone:
+                setattr(brivis_status.cooling_status, "zone_" + "_auto", y_n_to_bool(get_attribute(zone,"AE",None)))
+                setattr(brivis_status.cooling_status, "zone_" + "_temp", get_attribute(zone,"MT", 999))
 
-        zone = get_attribute(j[1].get("CGOM"),"ZAS",None)
+        zone = get_attribute(j[1].get("CGOM"),"ZUO",None)
         if zone:
-            brivis_status.cooling_status.zone_a_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.cooling_status.zone_a_temp = get_attribute(zone,"MT", 999)
-        zone = get_attribute(j[1].get("CGOM"),"ZBS",None)
-        if zone:
-            brivis_status.cooling_status.zone_b_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.cooling_status.zone_b_temp = get_attribute(zone,"MT", 999)
-        zone = get_attribute(j[1].get("CGOM"),"ZCS",None)
-        if zone:
-            brivis_status.cooling_status.zone_c_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.cooling_status.zone_c_temp = get_attribute(zone,"MT", 999)
-        zone = get_attribute(j[1].get("CGOM"),"ZDS",None)
-        if zone:
-            brivis_status.cooling_status.zone_d_auto = y_n_to_bool(get_attribute(zone,"AE",None))
-            brivis_status.cooling_status.zone_d_temp = get_attribute(zone,"MT", 999)
+            brivis_status.cooling_status.common_zone = y_n_to_bool(get_attribute(zone,"UE",None))
+            brivis_status.cooling_status._set_temp = get_attribute(zone,"SP", 999)
         zone = get_attribute(j[1].get("CGOM"),"ZUS",None)
         if zone:
             brivis_status.cooling_status.common_auto = y_n_to_bool(get_attribute(zone,"AE",None))
@@ -144,6 +124,8 @@ class CoolingStatus():
     schedule_period = None
     advance_period = None
     advanced = False
+    has_common_zone = False
+    common_zone = False
 
     #zones
     zones = []
@@ -173,14 +155,6 @@ class CoolingStatus():
         elif mode == "M":
             self.auto_mode = False
             self.manual_mode = True
-
-    def set_zones(self,zone_a,zone_b,zone_c,zone_d):
-        """Define zones."""
-        # Y = On, N = off
-        self.zone_a = y_n_to_bool(zone_a)
-        self.zone_b = y_n_to_bool(zone_b)
-        self.zone_c = y_n_to_bool(zone_c)
-        self.zone_d = y_n_to_bool(zone_d)
 
     def set_circulation_fan_on(self,status_str):
         """Set circ fan state."""
