@@ -57,7 +57,8 @@ def handle_evap_mode(j,brivis_status):
 
             for zoneid in ["A","B","C","D","U"]:
                 if zoneid in brivis_status.evap_status.zones.keys():
-                    brivis_status.evap_status[zoneid].user_enabled = y_n_to_bool(get_attribute(gso,"Z"+zoneid+"UE",False))
+                    brivis_status.evap_status[zoneid].user_enabled = \
+                        y_n_to_bool(get_attribute(gso,"Z"+zoneid+"UE",False))
 
 
             gss = get_attribute(j[1].get("ECOM"),"GSS",None)
@@ -66,7 +67,8 @@ def handle_evap_mode(j,brivis_status):
             else:
                 for zoneid in ["A","B","C","D","U"]:
                     if zoneid in brivis_status.evap_status.zones.keys():
-                        brivis_status.evap_status.zones[zoneid].auto_mode = y_n_to_bool(get_attribute(gss,"Z"+zoneid+"AE",False))
+                        brivis_status.evap_status.zones[zoneid].auto_mode = \
+                            y_n_to_bool(get_attribute(gss,"Z"+zoneid+"AE",False))
 
                 brivis_status.evap_status.prewetting = y_n_to_bool(get_attribute(gss,"PW",False))
                 brivis_status.evap_status.cooler_busy = y_n_to_bool(get_attribute(gss,"BY",False))
