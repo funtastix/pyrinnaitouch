@@ -1,8 +1,7 @@
 ﻿"""Cooling unit handling"""
 import logging
 
-from .system import Zone
-from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period
+from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period, Zone
 
 _LOGGER = logging.getLogger(__name__)
 
