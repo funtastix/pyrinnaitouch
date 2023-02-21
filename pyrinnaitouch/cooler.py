@@ -1,6 +1,7 @@
 ﻿"""Cooling unit handling"""
 import logging
 
+from .system import Zone
 from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period
 
 _LOGGER = logging.getLogger(__name__)
@@ -16,14 +17,15 @@ def handle_cooling_mode(j,brivis_status):
 
     else:
         if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
-            brivis_status.cooling_status.zones.append("A")
+            brivis_status.cooling_status.zones["A"] = Zone("A")
         if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
-            brivis_status.cooling_status.zones.append("B")
+            brivis_status.cooling_status.zones["B"] = Zone("B")
         if y_n_to_bool(get_attribute(cfg, "ZCIS", None)):
-            brivis_status.cooling_status.zones.append("C")
+            brivis_status.cooling_status.zones["C"] = Zone("C")
         if y_n_to_bool(get_attribute(cfg, "ZDIS", None)):
-            brivis_status.cooling_status.zones.append("D")
-        brivis_status.cooling_status.has_common_zone = y_n_to_bool(get_attribute(cfg, "ZUIS", None))
+            brivis_status.cooling_status.zones["D"] = Zone("D")
+        if y_n_to_bool(get_attribute(cfg, "ZUIS", None)):
+            brivis_status.cooling_status.zones["Common"] = Zone("Common")
 
     oop = get_attribute(j[1].get("CGOM"),"OOP",None)
     if not oop:
@@ -128,23 +130,7 @@ class CoolingStatus():
     common_zone = False
 
     #zones
-    zones = []
-    zone_a = False
-    zone_a_auto = False
-    zone_a_temp = 999
-    zone_a_set_temp = 999
-    zone_b = False
-    zone_b_auto = False
-    zone_b_temp = 999
-    zone_b_set_temp = 999
-    zone_c = False
-    zone_c_auto = False
-    zone_c_temp = 999
-    zone_c_set_temp = 999
-    zone_d = False
-    zone_d_auto = False
-    zone_d_temp = 999
-    zone_d_set_temp = 999
+    zones = dict()
 
     def set_mode(self,mode):
         """Set auto/manual mode."""
