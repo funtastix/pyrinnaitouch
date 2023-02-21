@@ -8,7 +8,7 @@ with open("README.md", "r") as fh: # pylint: disable=unspecified-encoding
 setup(
     name="pyrinnaitouch",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    version="0.10.5",
+    version="0.12.0beta1",
     license="mit",
     description="A python interface to the Rinnai Touch Wifi controller",
     long_description=LONG_DESCRIPTION,
