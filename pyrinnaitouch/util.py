@@ -37,6 +37,7 @@ def symbol_to_schedule_period(symbol):
     return None
 
 class Zone():
+    """Class to define the properties of a climate zone"""
 
     def __init__(self, name) -> None:
         self.name = name
@@ -65,4 +66,3 @@ class Zone():
             self.advanced = True
         else:
             self.advanced = False
-            

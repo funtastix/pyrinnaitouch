@@ -1,7 +1,7 @@
 """Evap unit handling"""
 import logging
 
-from .util import get_attribute, y_n_to_bool
+from .util import get_attribute, y_n_to_bool, Zone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,14 +15,9 @@ def handle_evap_mode(j,brivis_status):
         _LOGGER.error("No CFG - Not happy, Jan")
 
     else:
-        if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
-            brivis_status.heater_status.zones.append("A")
-        if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
-            brivis_status.heater_status.zones.append("B")
-        if y_n_to_bool(get_attribute(cfg, "ZCIS", None)):
-            brivis_status.heater_status.zones.append("C")
-        if y_n_to_bool(get_attribute(cfg, "ZDIS", None)):
-            brivis_status.heater_status.zones.append("D")
+        for zoneid in ["A","B","C","D", "U"]:
+            if y_n_to_bool(get_attribute(cfg, "Z"+zoneid+"IS", None)):
+                brivis_status.evap_status.zones[zoneid] = Zone(zoneid)
 
     gso = get_attribute(j[1].get("ECOM"),"GSO",None)
     if not gso:
