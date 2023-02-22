@@ -120,18 +120,30 @@ class RinnaiSystem:
 
     async def turn_unit_on(self) -> bool:
         """Turn unit on (and system)."""
-        return self.validate_and_send(
-            UNIT_ON_CMD.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_ON_CMD
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def turn_heater_on(self) -> bool:
         """Turn unit on (and system)."""
-        return self.validate_and_send(
-            UNIT_ON_CMD.format(unit_id=str(RinnaiUnitId.HEATER)))
+        cmd = UNIT_ON_CMD
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=str(RinnaiUnitId.HEATER)))
+            return True
+        return False
 
     async def turn_cooler_on(self) -> bool:
         """Turn unit on (and system)."""
-        return self.validate_and_send(
-            UNIT_ON_CMD.format(unit_id=str(RinnaiUnitId.COOLER)))
+        cmd = UNIT_ON_CMD
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=str(RinnaiUnitId.COOLER)))
+            return True
+        return False
 
     async def turn_unit_off(self) -> bool:
         """Turn unit off (and system)."""
@@ -140,8 +152,12 @@ class RinnaiSystem:
 
     async def turn_unit_fan_only(self) -> bool:
         """Turn circ fan on in while system is off."""
-        return self.validate_and_send(
-            UNIT_CIRC_FAN_ON.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_CIRC_FAN_ON
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def set_unit_temp(self, temp: int) -> bool:
         """Set target temperature."""
@@ -153,23 +169,39 @@ class RinnaiSystem:
 
     async def set_unit_auto(self) -> bool:
         """Set to auto mode."""
-        return self.validate_and_send(
-            UNIT_SET_AUTO.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_SET_AUTO
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def set_unit_manual(self) -> bool:
         """Set to manual mode."""
-        return self.validate_and_send(
-            UNIT_SET_MANUAL.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_SET_MANUAL
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def unit_advance(self) -> bool:
         """Press advance button."""
-        return self.validate_and_send(
-            UNIT_ADVANCE.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_ADVANCE
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def unit_advance_cancel(self) -> bool:
         """Press advance cancel button."""
-        return self.validate_and_send(
-            UNIT_ADVANCE_CANCEL.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_ADVANCE_CANCEL
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def turn_unit_zone_on(self, zone: str) -> bool:
         """Turn a zone on."""
