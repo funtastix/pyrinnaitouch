@@ -4,7 +4,7 @@
 
 from .system import RinnaiSystemStatus, RinnaiSystem
 from .unit_status import RinnaiUnitStatus
-from .const import RinnaiSchedulePeriod, RinnaiCapabilities, RinnaiOperatingMode, RinnaiSystemMode
+from .const import RinnaiSchedulePeriod, RinnaiCapabilities, RinnaiOperatingMode, RinnaiSystemMode, TEMP_FAHRENHEIT, TEMP_CELSIUS
 
 __ALL__ = [
     RinnaiSystemStatus,
@@ -13,5 +13,7 @@ __ALL__ = [
     RinnaiSchedulePeriod,
     RinnaiCapabilities,
     RinnaiOperatingMode,
-    RinnaiSystemMode
+    RinnaiSystemMode,
+    TEMP_CELSIUS,
+    TEMP_FAHRENHEIT
     ]
