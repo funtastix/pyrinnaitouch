@@ -1,7 +1,8 @@
 ﻿"""Heater unit handling"""
 import logging
 
-from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period, Zone
+from .util import get_attribute, y_n_to_bool, symbol_to_schedule_period
+from .zone import Zone
 
 _LOGGER = logging.getLogger(__name__)
 

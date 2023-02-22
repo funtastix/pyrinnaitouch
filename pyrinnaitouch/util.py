@@ -1,68 +1,48 @@
 ﻿"""Utility functions"""
-import logging
-from enum import Enum
+import threading
+from typing import Any, Callable
+from .const import RinnaiSchedulePeriod
 
-_LOGGER = logging.getLogger(__name__)
-
-def get_attribute(data, attribute, default_value):
+def get_attribute(data: Any, attribute: str, default_value: Any) -> Any:
     """get json attriubte from data."""
     return data.get(attribute) or default_value
 
-def y_n_to_bool(str_arg):
+def y_n_to_bool(str_arg: str) -> bool:
     """Convert Rinnai YN to Bool"""
     if str_arg == "Y":
         return True
     return False
 
-class SchedulePeriod(Enum):
-    """Define system schedule time periods."""
-    WAKE = "W"
-    LEAVE = "L"
-    RETURN = "R"
-    PRE_SLEEP = "P"
-    SLEEP = "S"
-
-def symbol_to_schedule_period(symbol):
+def symbol_to_schedule_period(symbol: str) -> RinnaiSchedulePeriod:
     """Convert JSON symbol to schedule time periods."""
     if symbol == "W":
-        return SchedulePeriod.WAKE
+        return RinnaiSchedulePeriod.WAKE
     if symbol == "L":
-        return SchedulePeriod.LEAVE
+        return RinnaiSchedulePeriod.LEAVE
     if symbol == "R":
-        return SchedulePeriod.RETURN
+        return RinnaiSchedulePeriod.RETURN
     if symbol == "P":
-        return SchedulePeriod.PRE_SLEEP
+        return RinnaiSchedulePeriod.PRE_SLEEP
     if symbol == "S":
-        return SchedulePeriod.SLEEP
-    return None
+        return RinnaiSchedulePeriod.SLEEP
+    return RinnaiSchedulePeriod.NONE
 
-class Zone():
-    """Class to define the properties of a climate zone"""
+def daemonthreaded(function_arg: Callable) -> Callable:
+    """Decoration to start object function as thread"""
+    def wrapper(*args, **kwargs) -> threading.Thread:
+        thread = threading.Thread(target=function_arg, args=args, kwargs=kwargs)
+        thread.daemon = True
+        thread.start()
+        return thread
+    return wrapper
 
-    def __init__(self, name) -> None:
-        self.name = name
+class UnknownModeException(Exception):
+    """Exception to catch system being in an unknown mode"""
 
-    name = ""
-    temperature = 999
-    set_temp = 0 # < 8 means off
-    schedule_period = None
-    advance_period = None
-    advanced = False
-    user_enabled = False # applies only to fan_only
-    auto_mode = False
+    # Constructor or Initializer
+    def __init__(self, value):
+        self.value = value
 
-    def set_mode(self,mode):
-        """Set auto/manual mode."""
-        # A = Auto Mode and M = Manual Mode
-        if mode == "A":
-            self.auto_mode = True
-        elif mode == "M":
-            self.auto_mode = False
-
-    def set_advanced(self,status_str):
-        """Set advanced state."""
-        # A = Advance, N = None, O = Operation (what is that?)
-        if status_str == "A":
-            self.advanced = True
-        else:
-            self.advanced = False
+    # __str__ is to print() the value
+    def __str__(self):
+        return repr(self.value)

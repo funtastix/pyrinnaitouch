@@ -2,10 +2,16 @@
     The primary purpose of this is to be integrated into Home Assistant.
 """
 
-from .system import BrivisStatus, RinnaiSystem
-from .evap import EvapStatus
-from .heater import HeaterStatus
-from .cooler import CoolingStatus
-from .util import SchedulePeriod
+from .system import RinnaiSystemStatus, RinnaiSystem
+from .unit_status import RinnaiUnitStatus
+from .const import RinnaiSchedulePeriod, RinnaiCapabilities, RinnaiOperatingMode, RinnaiSystemMode
 
-__ALL__ = [BrivisStatus, HeaterStatus, CoolingStatus, EvapStatus, RinnaiSystem, SchedulePeriod]
+__ALL__ = [
+    RinnaiSystemStatus,
+    RinnaiUnitStatus,
+    RinnaiSystem,
+    RinnaiSchedulePeriod,
+    RinnaiCapabilities,
+    RinnaiOperatingMode,
+    RinnaiSystemMode
+    ]

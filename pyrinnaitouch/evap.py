@@ -1,7 +1,8 @@
 """Evap unit handling"""
 import logging
 
-from .util import get_attribute, y_n_to_bool, Zone
+from .util import get_attribute, y_n_to_bool
+from .zone import Zone
 
 _LOGGER = logging.getLogger(__name__)
 
