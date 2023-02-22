@@ -66,20 +66,17 @@ class RinnaiSystemStatus():
             for part in status_json:
                 parts.extend(part.keys())
 
-            _LOGGER.debug("These are the parts %s", parts)
-            _LOGGER.debug("These are the enums %s", RinnaiUnitId.HEATER)
-
-            if RinnaiUnitId.HEATER in parts:
+            if str(RinnaiUnitId.HEATER) in parts:
                 capability = RinnaiCapabilities.HEATER
                 self.mode = RinnaiSystemMode.HEATING
                 _LOGGER.debug("We are in HEAT mode")
 
-            elif RinnaiUnitId.COOLER in parts:
+            elif str(RinnaiUnitId.COOLER) in parts:
                 capability = RinnaiCapabilities.COOLER
                 self.mode = RinnaiSystemMode.COOLING
                 _LOGGER.debug("We are in COOL mode")
 
-            elif RinnaiUnitId.EVAP in parts:
+            elif str(RinnaiUnitId.EVAP) in parts:
                 capability = RinnaiCapabilities.EVAP
                 self.mode = RinnaiSystemMode.EVAP
                 _LOGGER.debug("We are in EVAP mode")

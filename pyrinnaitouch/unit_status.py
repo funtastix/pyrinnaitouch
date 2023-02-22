@@ -322,10 +322,10 @@ class RinnaiUnitStatus():
         """Set the unit type"""
         self.capability = capability
         if self.capability == RinnaiCapabilities.COOLER:
-            self.unit_id = RinnaiUnitId.COOLER
+            self.unit_id = str(RinnaiUnitId.COOLER)
         elif self.capability == RinnaiCapabilities.HEATER:
-            self.unit_id = RinnaiUnitId.HEATER
+            self.unit_id = str(RinnaiUnitId.HEATER)
         elif self.capability == RinnaiCapabilities.EVAP:
-            self.unit_id = RinnaiUnitId.EVAP
+            self.unit_id = str(RinnaiUnitId.EVAP)
         else:
             self.unit_id = None
