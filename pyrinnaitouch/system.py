@@ -14,38 +14,6 @@ from .receiver import RinnaiReceiver
 from .event import Event
 from .system_status import RinnaiSystemStatus
 from .commands import (
-    HEAT_ON_CMD,
-    HEAT_OFF_CMD,
-    HEAT_SET_TEMP,
-    HEAT_CIRC_FAN_ON,
-    HEAT_ZONE_ON,
-    HEAT_ZONE_OFF,
-    HEAT_SET_MANUAL,
-    HEAT_SET_AUTO,
-    HEAT_ADVANCE,
-    HEAT_ADVANCE_CANCEL,
-    HEAT_ZONE_SET_TEMP,
-    HEAT_ZONE_SET_MANUAL,
-    HEAT_ZONE_SET_AUTO,
-    HEAT_ZONE_ADVANCE,
-    HEAT_ZONE_ADVANCE_CANCEL,
-    HEAT_CIRC_FAN_SPEED,
-    COOL_ON_CMD,
-    COOL_OFF_CMD,
-    COOL_SET_TEMP,
-    COOL_CIRC_FAN_ON,
-    COOL_ZONE_ON,
-    COOL_ZONE_OFF,
-    COOL_SET_MANUAL,
-    COOL_SET_AUTO,
-    COOL_ADVANCE,
-    COOL_ADVANCE_CANCEL,
-    COOL_ZONE_SET_TEMP,
-    COOL_ZONE_SET_MANUAL,
-    COOL_ZONE_SET_AUTO,
-    COOL_ZONE_ADVANCE,
-    COOL_ZONE_ADVANCE_CANCEL,
-    COOL_CIRC_FAN_SPEED,
     EVAP_ON_CMD,
     EVAP_OFF_CMD,
     EVAP_PUMP_ON,
@@ -63,10 +31,25 @@ from .commands import (
     MODE_COOL_CMD,
     MODE_EVAP_CMD,
     MODE_HEAT_CMD,
-    HEAT_COMMANDS,
-    COOL_COMMANDS,
     EVAP_COMMANDS,
-    MODE_COMMANDS
+    MODE_COMMANDS,
+    UNIT_ADVANCE,
+    UNIT_ADVANCE_CANCEL,
+    UNIT_CIRC_FAN_ON,
+    UNIT_CIRC_FAN_SPEED,
+    UNIT_COMMANDS,
+    UNIT_OFF_CMD,
+    UNIT_ON_CMD,
+    UNIT_SET_AUTO,
+    UNIT_SET_MANUAL,
+    UNIT_SET_TEMP,
+    UNIT_ZONE_ADVANCE,
+    UNIT_ZONE_ADVANCE_CANCEL,
+    UNIT_ZONE_OFF,
+    UNIT_ZONE_ON,
+    UNIT_ZONE_SET_AUTO,
+    UNIT_ZONE_SET_MANUAL,
+    UNIT_ZONE_SET_TEMP
 )
 
 from .util import daemonthreaded
@@ -137,187 +120,103 @@ class RinnaiSystem:
         """Set system to heater mode."""
         return self.validate_and_send(MODE_HEAT_CMD)
 
-    async def turn_heater_on(self) -> bool:
-        """Turn heater on (and system)."""
-        return self.validate_and_send(HEAT_ON_CMD)
+    async def turn_unit_on(self) -> bool:
+        """Turn unit on (and system)."""
+        return self.validate_and_send(
+            UNIT_ON_CMD.format(unitid=self._status.unit_status.unit_id))
 
-    async def turn_heater_off(self) -> bool:
-        """Turn heater off (and system)."""
-        return self.validate_and_send(HEAT_OFF_CMD)
+    async def turn_unit_off(self) -> bool:
+        """Turn unit off (and system)."""
+        return self.validate_and_send(
+            UNIT_OFF_CMD.format(unitid=self._status.unit_status.unit_id))
 
-    async def turn_heater_fan_only(self) -> bool:
-        """Turn circ fan on in heating mode while system is off."""
-        return self.validate_and_send(HEAT_CIRC_FAN_ON)
+    async def turn_unit_fan_only(self) -> bool:
+        """Turn circ fan on in while system is off."""
+        return self.validate_and_send(
+            UNIT_CIRC_FAN_ON.format(unitid=self._status.unit_status.unit_id))
 
-    async def set_heater_temp(self, temp: int) -> bool:
-        """Set target temperature in heating mode."""
-        cmd=HEAT_SET_TEMP
+    async def set_unit_temp(self, temp: int) -> bool:
+        """Set target temperature."""
+        cmd=UNIT_SET_TEMP
         if self.validate_command(cmd):
-            self.send_command(cmd.format(temp=temp))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id,temp=temp))
             return True
         return False
 
-    async def set_heater_auto(self) -> bool:
-        """Set to auto mode in heater."""
-        return self.validate_and_send(HEAT_SET_AUTO)
+    async def set_unit_auto(self) -> bool:
+        """Set to auto mode."""
+        return self.validate_and_send(
+            UNIT_SET_AUTO.format(unitid=self._status.unit_status.unit_id))
 
-    async def set_heater_manual(self) -> bool:
-        """Set to manual mode in heater."""
-        return self.validate_and_send(HEAT_SET_MANUAL)
+    async def set_unit_manual(self) -> bool:
+        """Set to manual mode."""
+        return self.validate_and_send(
+            UNIT_SET_MANUAL.format(unitid=self._status.unit_status.unit_id))
 
-    async def heater_advance(self) -> bool:
-        """Press advance button in heater mode."""
-        return self.validate_and_send(HEAT_ADVANCE)
+    async def unit_advance(self) -> bool:
+        """Press advance button."""
+        return self.validate_and_send(
+            UNIT_ADVANCE.format(unitid=self._status.unit_status.unit_id))
 
-    async def heater_advance_cancel(self) -> bool:
-        """Press advance cancel button in heater mode."""
-        return self.validate_and_send(HEAT_ADVANCE_CANCEL)
+    async def unit_advance_cancel(self) -> bool:
+        """Press advance cancel button."""
+        return self.validate_and_send(
+            UNIT_ADVANCE_CANCEL.format(unitid=self._status.unit_status.unit_id))
 
-    async def turn_heater_zone_on(self, zone: str) -> bool:
-        """Turn a zone on in heating mode."""
-        cmd=HEAT_ZONE_ON
+    async def turn_unit_zone_on(self, zone: str) -> bool:
+        """Turn a zone on."""
+        cmd=UNIT_ZONE_ON
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id,zone=zone))
             return True
         return False
 
-    async def turn_heater_zone_off(self, zone: str) -> bool:
-        """Turn a zone off in heating mode."""
-        cmd=HEAT_ZONE_OFF
+    async def turn_unit_zone_off(self, zone: str) -> bool:
+        """Turn a zone off."""
+        cmd=UNIT_ZONE_OFF
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id,zone=zone))
             return True
         return False
 
-    async def set_heater_zone_temp(self, zone: str, temp: int) -> bool:
-        """Set target temperature for a zone in heating mode."""
-        cmd=HEAT_ZONE_SET_TEMP
+    async def set_unit_zone_temp(self, zone: str, temp: int) -> bool:
+        """Set target temperature for a zone."""
+        cmd=UNIT_ZONE_SET_TEMP
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone, temp=temp))
+            self.send_command(
+                cmd.format(unitid=self._status.unit_status.unit_id, zone=zone, temp=temp))
             return True
         return False
 
-    async def set_heater_zone_auto(self, zone: str) -> bool:
-        """Set zone to auto mode in heating."""
-        cmd=HEAT_ZONE_SET_AUTO
+    async def set_unit_zone_auto(self, zone: str) -> bool:
+        """Set zone to auto mode."""
+        cmd=UNIT_ZONE_SET_AUTO
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id, zone=zone))
             return True
         return False
 
-    async def set_heater_zone_manual(self, zone: str) -> bool:
-        """Set zone to manual mode in heating."""
-        cmd=HEAT_ZONE_SET_MANUAL
+    async def set_unit_zone_manual(self, zone: str) -> bool:
+        """Set zone to manual mode."""
+        cmd=UNIT_ZONE_SET_MANUAL
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id, zone=zone))
             return True
         return False
 
-    async def set_heater_zone_advance(self, zone: str) -> bool:
-        """Press zone advance button in heater mode."""
-        cmd=HEAT_ZONE_ADVANCE
+    async def set_unit_zone_advance(self, zone: str) -> bool:
+        """Press zone advance button."""
+        cmd=UNIT_ZONE_ADVANCE
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id, zone=zone))
             return True
         return False
 
-    async def set_heater_zone_advance_cancel(self, zone: str) -> bool:
-        """Press zone advance cacnel button in heater mode."""
-        cmd=HEAT_ZONE_ADVANCE_CANCEL
+    async def set_unit_zone_advance_cancel(self, zone: str) -> bool:
+        """Press zone advance cacnel button."""
+        cmd=UNIT_ZONE_ADVANCE_CANCEL
         if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
-            return True
-        return False
-
-    async def turn_cooling_on(self) -> bool:
-        """Turn cooling on (and system)."""
-        return self.validate_and_send(COOL_ON_CMD)
-
-    async def turn_cooling_off(self) -> bool:
-        """Turn cooling off (and system)."""
-        return self.validate_and_send(COOL_OFF_CMD)
-
-    async def turn_cooling_fan_only(self) -> bool:
-        """Turn circ fan on (fan only) in cooling mode while system off."""
-        return self.validate_and_send(COOL_CIRC_FAN_ON)
-
-    async def set_cooling_temp(self, temp: int) -> bool:
-        """Set main target temperature in cooling mode."""
-        cmd=COOL_SET_TEMP
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(temp=temp))
-            return True
-        return False
-
-    async def set_cooling_auto(self) -> bool:
-        """Set auto mode in cooling."""
-        return self.validate_and_send(COOL_SET_AUTO)
-
-    async def set_cooling_manual(self) -> bool:
-        """Set manual mode in cooling."""
-        return self.validate_and_send(COOL_SET_MANUAL)
-
-    async def cooling_advance(self) -> bool:
-        """Press advance button in cooling mode."""
-        return self.validate_and_send(COOL_ADVANCE)
-
-    async def cooling_advance_cancel(self) -> bool:
-        """Press advance cancel button in cooling mode."""
-        return self.validate_and_send(COOL_ADVANCE_CANCEL)
-
-    async def turn_cooling_zone_on(self, zone: str) -> bool:
-        """Turn zone on in cooling mode."""
-        cmd=COOL_ZONE_ON
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
-            return True
-        return False
-
-    async def turn_cooling_zone_off(self, zone: str) -> bool:
-        """Turn zone off in cooling mode."""
-        cmd=COOL_ZONE_OFF
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
-            return True
-        return False
-
-    async def set_cooling_zone_temp(self, zone: str, temp: int) -> bool:
-        """Set zone target temperature in cooling."""
-        cmd=COOL_ZONE_SET_TEMP
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone, temp=temp))
-            return True
-        return False
-
-    async def set_cooling_zone_auto(self, zone: str) -> bool:
-        """Set zone to auto mode in cooling."""
-        cmd=COOL_ZONE_SET_AUTO
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
-            return True
-        return False
-
-    async def set_cooling_zone_manual(self, zone: str) -> bool:
-        """Set zone to manual mode in cooling."""
-        cmd=COOL_ZONE_SET_MANUAL
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
-            return True
-        return False
-
-    async def set_cooling_zone_advance(self, zone: str) -> bool:
-        """Press advance button in a zone in cooling mode."""
-        cmd=COOL_ZONE_ADVANCE
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
-            return True
-        return False
-
-    async def set_cooling_zone_advance_cancel(self, zone: str) -> bool:
-        """Press advance cancel button in a zone in cooling mode."""
-        cmd=COOL_ZONE_ADVANCE_CANCEL
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(zone=zone))
+            self.send_command(cmd.format(unitid=self._status.unit_status.unit_id, zone=zone))
             return True
         return False
 
@@ -361,19 +260,12 @@ class RinnaiSystem:
             return True
         return False
 
-    async def set_heater_fanspeed(self, speed: int) -> bool:
-        """Set fan speed in heater mode."""
-        cmd=HEAT_CIRC_FAN_SPEED
+    async def set_unit_fanspeed(self, speed: int) -> bool:
+        """Set fan speed."""
+        cmd=UNIT_CIRC_FAN_SPEED
         if self.validate_command(cmd):
-            self.send_command(cmd.format(speed=f'{speed:02d}'))
-            return True
-        return False
-
-    async def set_cooling_fanspeed(self, speed: int) -> bool:
-        """Set fan speed in cooling mode."""
-        cmd=COOL_CIRC_FAN_SPEED
-        if self.validate_command(cmd):
-            self.send_command(cmd.format(speed=f'{speed:02d}'))
+            self.send_command(
+                cmd.format(unitid=self._status.unit_status.unit_id, peed=f'{speed:02d}'))
             return True
         return False
 
@@ -425,9 +317,8 @@ class RinnaiSystem:
         """Validate a command is appropriat to the current operating mode."""
         if cmd in MODE_COMMANDS:
             return True
-        if cmd in HEAT_COMMANDS and self._status.mode == RinnaiSystemMode.HEATING:
-            return True
-        if cmd in COOL_COMMANDS and self._status.mode == RinnaiSystemMode.COOLING:
+        if cmd in UNIT_COMMANDS \
+            and RinnaiSystemMode.HEATING | RinnaiSystemMode.COOLING in self._status.mode:
             return True
         if cmd in EVAP_COMMANDS and self._status.mode == RinnaiSystemMode.EVAP:
             return True
