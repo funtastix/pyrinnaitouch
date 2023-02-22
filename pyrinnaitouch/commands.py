@@ -63,6 +63,7 @@ EVAP_ZONE_SET_AUTO = '{{"ECOM": {{"GSS": {{"Z{zone}AE": "Y" }} }} }}'
 
 EVAP_COMMANDS = [
     UNIT_ON_CMD,
+    UNIT_OFF_CMD,
     EVAP_ON_CMD,
     EVAP_OFF_CMD,
     EVAP_PUMP_ON,
