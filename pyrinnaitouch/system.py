@@ -21,8 +21,6 @@ from .commands import (
     EVAP_FAN_ON,
     EVAP_FAN_OFF,
     EVAP_FAN_SPEED,
-    EVAP_SET_MANUAL,
-    EVAP_SET_AUTO,
     EVAP_SET_COMFORT,
     EVAP_ZONE_ON,
     EVAP_ZONE_OFF,
@@ -243,14 +241,6 @@ class RinnaiSystem:
     async def turn_evap_fan_off(self) -> bool:
         """Turn fan off in evap mode."""
         return self.validate_and_send(EVAP_FAN_OFF)
-
-    async def set_evap_auto(self) -> bool:
-        """Set to auto mode in evap."""
-        return self.validate_and_send(EVAP_SET_AUTO)
-
-    async def set_evap_manual(self) -> bool:
-        """Set to manual mode in evap."""
-        return self.validate_and_send(EVAP_SET_MANUAL)
 
     async def set_evap_fanspeed(self, speed: int) -> bool:
         """Set fan speed in evap mode."""
