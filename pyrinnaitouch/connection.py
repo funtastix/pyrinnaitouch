@@ -25,7 +25,7 @@ class RinnaiConnection:
             self._client = RinnaiConnection.clients[ip_address]
 
     def __str__(self) -> str:
-        return self._client.__str__() + "/" + self._client._closed # pylint: disable=protected-access
+        return self._client.__str__() + "/" + str(self._client._closed) # pylint: disable=protected-access
 
     def update_send_sequence(self, seq: int) -> None:
         """Determine new send sequence"""

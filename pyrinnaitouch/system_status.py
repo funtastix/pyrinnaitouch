@@ -65,6 +65,10 @@ class RinnaiSystemStatus():
             parts = []
             for part in status_json:
                 parts.extend(part.keys())
+
+            _LOGGER.debug("These are the parts %s", parts)
+            _LOGGER.debug("These are the enums %s", RinnaiUnitId.HEATER)
+
             if RinnaiUnitId.HEATER in parts:
                 capability = RinnaiCapabilities.HEATER
                 self.mode = RinnaiSystemMode.HEATING
