@@ -37,9 +37,14 @@ class RinnaiConnection:
 
     def shutdown(self) -> None:
         """Shut down the connection"""
-        self._client.shutdown(socket.SHUT_RDWR)
-        self._client.close()
-        self._lastclosed = time.time()
+        try:
+            self._client.shutdown(socket.SHUT_RDWR)
+            self._client.close()
+            self._lastclosed = time.time()
+        except (OSError, ConnectionError) as ocerr:
+            _LOGGER.debug("Exception during client shutdown %s", ocerr)
+
+
 
     def send(self, message: bytes) -> None:
         """Send a message to the unit"""
