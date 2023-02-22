@@ -57,7 +57,7 @@ def handle_evap_mode(j,brivis_status):
 
             for zoneid in ["A","B","C","D","U"]:
                 if zoneid in brivis_status.evap_status.zones.keys():
-                    brivis_status.evap_status[zoneid].user_enabled = \
+                    brivis_status.evap_status.zones[zoneid].user_enabled = \
                         y_n_to_bool(get_attribute(gso,"Z"+zoneid+"UE",False))
 
 
