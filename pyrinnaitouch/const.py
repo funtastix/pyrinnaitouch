@@ -24,6 +24,9 @@ class RinnaiCapabilities(Flag):
 
 class RinnaiSchedulePeriod(Enum):
     """Define system schedule time periods."""
+    def __str__(self):
+        return str(self.value)
+
     NONE = None
     WAKE = "W"
     LEAVE = "L"
@@ -33,6 +36,9 @@ class RinnaiSchedulePeriod(Enum):
 
 class RinnaiUnitId(Enum):
     """Define unit ids."""
+    def __str__(self):
+        return str(self.value)
+
     HEATER = "HGOM"
     COOLER = "CGOM"
     EVAP = "ECOM"
