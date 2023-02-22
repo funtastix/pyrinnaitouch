@@ -323,7 +323,7 @@ class RinnaiSystem:
         if self.validate_command(cmd):
             self.send_command(cmd)
             return True
-        _LOGGER.error("Validation of command failed. Not sending")
+        _LOGGER.error("Validation of command failed. Not sending. CMD: %s, Mode: %s", cmd, self._status.mode)
         return False
 
     def get_status(self) -> RinnaiSystemStatus:
