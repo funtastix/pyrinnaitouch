@@ -147,8 +147,12 @@ class RinnaiSystem:
 
     async def turn_unit_off(self) -> bool:
         """Turn unit off (and system)."""
-        return self.validate_and_send(
-            UNIT_OFF_CMD.format(unit_id=self._status.unit_status.unit_id))
+        cmd = UNIT_OFF_CMD
+        if self.validate_command(cmd):
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id))
+            return True
+        return False
 
     async def turn_unit_fan_only(self) -> bool:
         """Turn circ fan on in while system is off."""
