@@ -308,7 +308,7 @@ class RinnaiSystem:
         if cmd in MODE_COMMANDS:
             return True
         if cmd in UNIT_COMMANDS \
-            and RinnaiSystemMode.HEATING | RinnaiSystemMode.COOLING in self._status.mode:
+            and self._status.mode in (RinnaiSystemMode.HEATING, RinnaiSystemMode.COOLING):
             return True
         if cmd in EVAP_COMMANDS and self._status.mode == RinnaiSystemMode.EVAP:
             return True
