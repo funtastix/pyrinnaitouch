@@ -3,7 +3,7 @@ import logging
 import queue
 from typing import Any
 
-from pyrinnaitouch.const import RinnaiSystemMode
+from .const import RinnaiSystemMode, RinnaiUnitId
 try:
     from typing import Self
 except ImportError:
@@ -122,6 +122,16 @@ class RinnaiSystem:
         """Turn unit on (and system)."""
         return self.validate_and_send(
             UNIT_ON_CMD.format(unit_id=self._status.unit_status.unit_id))
+
+    async def turn_heater_on(self) -> bool:
+        """Turn unit on (and system)."""
+        return self.validate_and_send(
+            UNIT_ON_CMD.format(unit_id=str(RinnaiUnitId.HEATER)))
+
+    async def turn_cooler_on(self) -> bool:
+        """Turn unit on (and system)."""
+        return self.validate_and_send(
+            UNIT_ON_CMD.format(unit_id=str(RinnaiUnitId.COOLER)))
 
     async def turn_unit_off(self) -> bool:
         """Turn unit off (and system)."""
