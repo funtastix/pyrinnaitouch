@@ -7,11 +7,16 @@ from .const import (
     ADVANCED,
     ALL_ZONES,
     AUTO_ENABLED,
+    CALLING_FOR_COOL,
+    CALLING_FOR_HEAT,
+    COMPRESSOR_ACTIVE,
     CONFIGURATION,
     COOLER_BUSY,
+    FAN_ACTIVE,
     FAN_OPERATING,
     FAN_SPEED_LEVEL,
     FAN_STATE,
+    GAS_VALVE_ACTIVE,
     GENERAL_SYSTEM_OPERATION,
     GENERAL_SYSTEM_STATUS,
     MEASURED_TEMPERATURE,
@@ -60,8 +65,8 @@ class RinnaiUnitStatus():
         self.preheating: bool = False #mtsp it's per zone
         self.gas_valve_active: bool = False #mtsp it's per zone
         self.compressor_active: bool = False #mtsp it's per zone
-        self.calling_for_heat: bool = False #mtsp it's per zone
-        self.calling_for_cool: bool = False #mtsp it's per zone
+        self.calling_for_heat: bool = False #mtsp it's per zone (AE)
+        self.calling_for_cool: bool = False #mtsp it's per zone (AE)
         self.schedule_period: RinnaiSchedulePeriod = RinnaiSchedulePeriod.NONE
         self.advance_period: RinnaiSchedulePeriod = RinnaiSchedulePeriod.NONE
         self.advanced: bool = False
@@ -70,8 +75,8 @@ class RinnaiUnitStatus():
         self.prewetting: bool = False
         self.cooler_busy: bool = False
         self.pump_operating: bool = False
-        self.fan_operating: bool = False #mtsp for heating and cooling it's per zone (AE)
-        self.zones: Dict[object] = {}
+        self.fan_operating: bool = False #mtsp for heating and cooling it's per zone
+        self.zones: Dict[str, Zone] = {}
 
     def set_mode(self,mode: str) -> None:
         """Set auto/manual mode."""
@@ -157,9 +162,7 @@ class RinnaiUnitStatus():
                     _LOGGER.debug("Fan Speed is: %s", fan_speed)
                     self.fan_speed = int(fan_speed) # Should catch errors!
 
-                    if is_multi_set_point:
-                        pass
-                    else:
+                    if not is_multi_set_point:
                         # GSO should be there for single set point
                         self.parse_standard_gso(status_json)
 
@@ -207,6 +210,14 @@ class RinnaiUnitStatus():
                                 symbol_to_schedule_period(get_attribute(zone,ADVANCE_PERIOD,None))
                 self.zones[zoneid].schedule_period = \
                                 symbol_to_schedule_period(get_attribute(zone,SCHEDULE_PERIOD,None))
+                self.zones[zoneid].fan_operating = y_n_to_bool(get_attribute(zone,FAN_ACTIVE,None))
+                if self.capability == RinnaiCapabilities.HEATER:
+                    self.zones[zoneid].gas_valve_active = \
+                        y_n_to_bool(get_attribute(zone,GAS_VALVE_ACTIVE,None))
+                    self.zones[zoneid].preheating = y_n_to_bool(get_attribute(zone,PREHEATING,None))
+                if self.capability == RinnaiCapabilities.COOLER:
+                    self.zones[zoneid].compressor_active = \
+                        y_n_to_bool(get_attribute(zone,COMPRESSOR_ACTIVE,None))
 
     def parse_zone_operation(self, is_multi_set_point: bool, zoneid: str, zone: Any) -> None:
         """Parse Zone Settings"""
@@ -245,6 +256,13 @@ class RinnaiUnitStatus():
                 if self.capability == RinnaiCapabilities.HEATER:
                     preheat = y_n_to_bool(get_attribute(gss,PREHEATING,False))
                     self.preheating = preheat
+                    self.calling_for_heat = y_n_to_bool(get_attribute(gss,CALLING_FOR_HEAT,False))
+                    self.gas_valve_active = y_n_to_bool(get_attribute(gss,GAS_VALVE_ACTIVE,False))
+                    self.fan_operating = y_n_to_bool(get_attribute(gss,FAN_ACTIVE,False))
+                if self.capability == RinnaiCapabilities.COOLER:
+                    self.calling_for_cool = y_n_to_bool(get_attribute(gss,CALLING_FOR_COOL,False))
+                    self.compressor_active = y_n_to_bool(get_attribute(gss,COMPRESSOR_ACTIVE,False))
+                    self.fan_operating = y_n_to_bool(get_attribute(gss,FAN_ACTIVE,False))
                 period = symbol_to_schedule_period(get_attribute(gss,SCHEDULE_PERIOD,None))
                 self.schedule_period = period
                 period = symbol_to_schedule_period(get_attribute(gss,ADVANCE_PERIOD,None))
