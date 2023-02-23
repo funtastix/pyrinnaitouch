@@ -49,7 +49,7 @@ class RinnaiReceiver:
                 _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
                 self._connection.shutdown()
                 self._connection.renew_connection()
-            except TimeoutError as timeouterr:
+            except (OSError, TimeoutError) as timeouterr:
                 _LOGGER.error("Socket timed out, renewing connection (%s)", repr(timeouterr))
                 self._connection.shutdown()
                 self._connection.renew_connection()
