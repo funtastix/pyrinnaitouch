@@ -9,6 +9,7 @@ from .const import (
     AUTO_ENABLED,
     CONFIGURATION,
     COOLER_BUSY,
+    FAN_OPERATING,
     FAN_SPEED_LEVEL,
     FAN_STATE,
     GENERAL_SYSTEM_OPERATION,
@@ -21,6 +22,7 @@ from .const import (
     OVERALL_OPERATION,
     PREHEATING,
     PREWETTING,
+    PUMP_OPERATING,
     PUMP_STATE,
     SCHEDULE_OVERRIDE,
     SCHEDULE_PERIOD,
@@ -55,7 +57,11 @@ class RinnaiUnitStatus():
         self.set_temp: int = 0
         self.comfort: int = 0
         self.temperature: int = 999
-        self.preheating: bool = False
+        self.preheating: bool = False #mtsp it's per zone
+        self.gas_valve_active: bool = False #mtsp it's per zone
+        self.compressor_active: bool = False #mtsp it's per zone
+        self.calling_for_heat: bool = False #mtsp it's per zone
+        self.calling_for_cool: bool = False #mtsp it's per zone
         self.schedule_period: RinnaiSchedulePeriod = RinnaiSchedulePeriod.NONE
         self.advance_period: RinnaiSchedulePeriod = RinnaiSchedulePeriod.NONE
         self.advanced: bool = False
@@ -63,6 +69,8 @@ class RinnaiUnitStatus():
         self.water_pump_on: bool = False
         self.prewetting: bool = False
         self.cooler_busy: bool = False
+        self.pump_operating: bool = False
+        self.fan_operating: bool = False #mtsp for heating and cooling it's per zone (AE)
         self.zones: Dict[object] = {}
 
     def set_mode(self,mode: str) -> None:
@@ -191,7 +199,7 @@ class RinnaiUnitStatus():
         """Parse Zone Status"""
         if zone and zoneid in self.zones.keys(): # pylint: disable=consider-iterating-dictionary
                         # these ones are common
-            self.zones[zoneid].auto_mode = y_n_to_bool(get_attribute(zone,AUTO_ENABLED,None))
+            self.zones[zoneid].calling_for_work = y_n_to_bool(get_attribute(zone,AUTO_ENABLED,None))
             self.zones[zoneid].temperature = get_attribute(zone,MEASURED_TEMPERATURE, 999)
                         # these ones are multi only
             if is_multi_set_point:
@@ -299,6 +307,8 @@ class RinnaiUnitStatus():
 
                     self.prewetting = y_n_to_bool(get_attribute(gss,PREWETTING,False))
                     self.cooler_busy = y_n_to_bool(get_attribute(gss,COOLER_BUSY,False))
+                    self.pump_operating = y_n_to_bool(get_attribute(gss,PUMP_OPERATING,False))
+                    self.fan_operating = y_n_to_bool(get_attribute(gss,FAN_OPERATING,False))
 
 
             elif switch == STATE_OFF:
