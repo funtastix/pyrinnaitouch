@@ -6,6 +6,8 @@ from .const import ADVANCED, MODE_AUTO, MODE_MANUAL
 class Zone():
     """Class to define the properties of a climate zone"""
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, name: str) -> None:
         self.name = name
         self.temperature = 999
