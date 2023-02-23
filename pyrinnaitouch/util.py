@@ -1,37 +1,48 @@
 ﻿"""Utility functions"""
-import logging
-from enum import Enum
+import threading
+from typing import Any, Callable
+from .const import RinnaiSchedulePeriod
 
-_LOGGER = logging.getLogger(__name__)
-
-def get_attribute(data, attribute, default_value):
+def get_attribute(data: Any, attribute: str, default_value: Any) -> Any:
     """get json attriubte from data."""
     return data.get(attribute) or default_value
 
-def y_n_to_bool(str_arg):
+def y_n_to_bool(str_arg: str) -> bool:
     """Convert Rinnai YN to Bool"""
     if str_arg == "Y":
         return True
     return False
 
-class SchedulePeriod(Enum):
-    """Define system schedule time periods."""
-    WAKE = "W"
-    LEAVE = "L"
-    RETURN = "R"
-    PRE_SLEEP = "P"
-    SLEEP = "S"
-
-def symbol_to_schedule_period(symbol):
+def symbol_to_schedule_period(symbol: str) -> RinnaiSchedulePeriod:
     """Convert JSON symbol to schedule time periods."""
     if symbol == "W":
-        return SchedulePeriod.WAKE
+        return RinnaiSchedulePeriod.WAKE
     if symbol == "L":
-        return SchedulePeriod.LEAVE
+        return RinnaiSchedulePeriod.LEAVE
     if symbol == "R":
-        return SchedulePeriod.RETURN
+        return RinnaiSchedulePeriod.RETURN
     if symbol == "P":
-        return SchedulePeriod.PRE_SLEEP
+        return RinnaiSchedulePeriod.PRE_SLEEP
     if symbol == "S":
-        return SchedulePeriod.SLEEP
-    return None
+        return RinnaiSchedulePeriod.SLEEP
+    return RinnaiSchedulePeriod.NONE
+
+def daemonthreaded(function_arg: Callable) -> Callable:
+    """Decoration to start object function as thread"""
+    def wrapper(*args, **kwargs) -> threading.Thread:
+        thread = threading.Thread(target=function_arg, args=args, kwargs=kwargs)
+        thread.daemon = True
+        thread.start()
+        return thread
+    return wrapper
+
+class UnknownModeException(Exception):
+    """Exception to catch system being in an unknown mode"""
+
+    # Constructor or Initializer
+    def __init__(self, value):
+        self.value = value
+
+    # __str__ is to print() the value
+    def __str__(self):
+        return repr(self.value)

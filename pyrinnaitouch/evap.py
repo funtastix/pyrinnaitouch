@@ -2,6 +2,7 @@
 import logging
 
 from .util import get_attribute, y_n_to_bool
+from .zone import Zone
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,15 +16,11 @@ def handle_evap_mode(j,brivis_status):
         _LOGGER.error("No CFG - Not happy, Jan")
 
     else:
-        if y_n_to_bool(get_attribute(cfg, "ZAIS", None)):
-            brivis_status.heater_status.zones.append("A")
-        if y_n_to_bool(get_attribute(cfg, "ZBIS", None)):
-            brivis_status.heater_status.zones.append("B")
-        if y_n_to_bool(get_attribute(cfg, "ZCIS", None)):
-            brivis_status.heater_status.zones.append("C")
-        if y_n_to_bool(get_attribute(cfg, "ZDIS", None)):
-            brivis_status.heater_status.zones.append("D")
+        for zoneid in ["A","B","C","D", "U"]:
+            if y_n_to_bool(get_attribute(cfg, "Z"+zoneid+"IS", None)):
+                brivis_status.evap_status.zones[zoneid] = Zone(zoneid)
 
+    # no multi, there's always a GSO
     gso = get_attribute(j[1].get("ECOM"),"GSO",None)
     if not gso:
         _LOGGER.error("No GSO here")
@@ -53,31 +50,26 @@ def handle_evap_mode(j,brivis_status):
                 _LOGGER.debug("Water Pump is: %s", water_pump)
                 brivis_status.evap_status.set_water_pump(water_pump)
 
-                brivis_status.evap_status.zone_a = y_n_to_bool(get_attribute(gso,"ZAUE",False))
-                brivis_status.evap_status.zone_b = y_n_to_bool(get_attribute(gso,"ZBUE",False))
-                brivis_status.evap_status.zone_c = y_n_to_bool(get_attribute(gso,"ZCUE",False))
-                brivis_status.evap_status.zone_d = y_n_to_bool(get_attribute(gso,"ZDUE",False))
-
             else:
                 # Evap is on and auto - look for comfort level
                 comfort = get_attribute(gso, "SP", 0)
                 _LOGGER.debug("Comfort Level is: %s", comfort)
                 brivis_status.evap_status.set_comfort(comfort)
 
-                brivis_status.evap_status.zone_a = False
-                brivis_status.evap_status.zone_b = False
-                brivis_status.evap_status.zone_c = False
-                brivis_status.evap_status.zone_d = False
+            for zoneid in ["A","B","C","D","U"]:
+                if zoneid in brivis_status.evap_status.zones.keys():
+                    brivis_status.evap_status.zones[zoneid].user_enabled = \
+                        y_n_to_bool(get_attribute(gso,"Z"+zoneid+"UE",False))
+
 
             gss = get_attribute(j[1].get("ECOM"),"GSS",None)
             if not gss:
                 _LOGGER.error("No GSS here")
             else:
-                brivis_status.evap_status.common_auto = y_n_to_bool(get_attribute(gss,"ZUAE",False))
-                brivis_status.evap_status.zone_a_auto = y_n_to_bool(get_attribute(gss,"ZAAE",False))
-                brivis_status.evap_status.zone_b_auto = y_n_to_bool(get_attribute(gss,"ZBAE",False))
-                brivis_status.evap_status.zone_c_auto = y_n_to_bool(get_attribute(gss,"ZCAE",False))
-                brivis_status.evap_status.zone_d_auto = y_n_to_bool(get_attribute(gss,"ZDAE",False))
+                for zoneid in ["A","B","C","D","U"]:
+                    if zoneid in brivis_status.evap_status.zones.keys():
+                        brivis_status.evap_status.zones[zoneid].auto_mode = \
+                            y_n_to_bool(get_attribute(gss,"Z"+zoneid+"AE",False))
 
                 brivis_status.evap_status.prewetting = y_n_to_bool(get_attribute(gss,"PW",False))
                 brivis_status.evap_status.cooler_busy = y_n_to_bool(get_attribute(gss,"BY",False))
@@ -89,17 +81,6 @@ def handle_evap_mode(j,brivis_status):
             brivis_status.system_on = False
             brivis_status.evap_status.evap_on = False
 
-            brivis_status.evap_status.zone_a = False
-            brivis_status.evap_status.zone_b = False
-            brivis_status.evap_status.zone_c = False
-            brivis_status.evap_status.zone_d = False
-
-            brivis_status.evap_status.common_auto = False
-            brivis_status.evap_status.zone_a_auto = False
-            brivis_status.evap_status.zone_b_auto = False
-            brivis_status.evap_status.zone_c_auto = False
-            brivis_status.evap_status.zone_d_auto = False
-
 class EvapStatus():
     """Evap function status"""
     evap_on = False
@@ -109,21 +90,12 @@ class EvapStatus():
     fan_speed = 0
     water_pump_on = False
     comfort = 0
-    common_auto = False
     temperature = 999
     prewetting = False
     cooler_busy = False
 
     #zones
-    zones = []
-    zone_a = False
-    zone_a_auto = False
-    zone_b = False
-    zone_b_auto = False
-    zone_c = False
-    zone_c_auto = False
-    zone_d = False
-    zone_d_auto = False
+    zones = {}
 
     def set_fan(self,status_str):
         """Set fan state."""
