@@ -44,8 +44,6 @@ class RinnaiConnection:
         except (OSError, ConnectionError) as ocerr:
             _LOGGER.debug("Exception during client shutdown %s", ocerr)
 
-
-
     def send(self, message: bytes) -> None:
         """Send a message to the unit"""
         self._client.sendall(message)

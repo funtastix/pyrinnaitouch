@@ -37,7 +37,10 @@ class RinnaiReceiver:
                 pass
 
             #send empty command ever so often
-            self.send_empty_command()
+            try:
+                self.send_empty_command()
+            except (ConnectionError, TimeoutError) as err:
+                _LOGGER.error("Couldn't send empty command (connection): (%s)", repr(err))
 
             #receive status
             try:
