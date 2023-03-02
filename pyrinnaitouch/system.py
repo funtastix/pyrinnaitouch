@@ -4,6 +4,7 @@ import queue
 from typing import Any
 
 from .const import RinnaiSystemMode, RinnaiUnitId
+
 try:
     from typing import Self
 except ImportError:
@@ -47,15 +48,17 @@ from .commands import (
     UNIT_ZONE_ON,
     UNIT_ZONE_SET_AUTO,
     UNIT_ZONE_SET_MANUAL,
-    UNIT_ZONE_SET_TEMP
+    UNIT_ZONE_SET_TEMP,
 )
 
 from .util import daemonthreaded
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class RinnaiSystem:
     """Main controller class to interact with the Rinnai Touch Wifi unit."""
+
     # pylint: disable=too-many-instance-attributes,too-many-public-methods
 
     instances = {}
@@ -76,27 +79,30 @@ class RinnaiSystem:
             return RinnaiSystem.instances[ip_address]
         return RinnaiSystem(ip_address)
 
-    def subscribe_updates(self,obj_method: Any) -> None:
+    def subscribe_updates(self, obj_method: Any) -> None:
         """Subscribe to updates when the system status refreshes."""
         self._on_updated += obj_method
 
-    def unsubscribe_updates(self,obj_method: Any) -> None:
+    def unsubscribe_updates(self, obj_method: Any) -> None:
         """Unsubscribe from updates received when the system status refreshes."""
         self._on_updated -= obj_method
 
     @daemonthreaded
     def poll_loop(self) -> None:
         """Main poll thread to receive updated messages from the unit."""
-        #create the first connection
+        # create the first connection
         self._connection.renew_connection()
-        #start the receiver thread
+        # start the receiver thread
         receiver = RinnaiReceiver(self._connection, self._receiverqueue)
         receiver.receiver()
 
-        #enter loop, wait for received (new) messages and push them to hass
+        # enter loop, wait for received (new) messages and push them to hass
         while True:
             new_status_json = self._receiverqueue.get()
             if new_status_json:
+                if "sys.exit" in new_status_json:
+                    self._connection.shutdown()
+                    break
                 status = RinnaiSystemStatus()
                 res = status.handle_status(new_status_json)
                 if res:
@@ -104,7 +110,7 @@ class RinnaiSystem:
                     self._on_updated()
                 else:
                     self._connection.log_json_error()
-
+        _LOGGER.debug("Shutting down the polling thread")
 
     async def set_cooling_mode(self) -> bool:
         """Set system to cooling mode."""
@@ -122,8 +128,7 @@ class RinnaiSystem:
         """Turn unit on (and system)."""
         cmd = UNIT_ON_CMD
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
@@ -131,8 +136,7 @@ class RinnaiSystem:
         """Turn unit on (and system)."""
         cmd = UNIT_ON_CMD
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=str(RinnaiUnitId.HEATER)))
+            self.send_command(cmd.format(unit_id=str(RinnaiUnitId.HEATER)))
             return True
         return False
 
@@ -140,8 +144,7 @@ class RinnaiSystem:
         """Turn unit on (and system)."""
         cmd = UNIT_ON_CMD
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=str(RinnaiUnitId.COOLER)))
+            self.send_command(cmd.format(unit_id=str(RinnaiUnitId.COOLER)))
             return True
         return False
 
@@ -149,8 +152,7 @@ class RinnaiSystem:
         """Turn unit off (and system)."""
         cmd = UNIT_OFF_CMD
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
@@ -158,16 +160,17 @@ class RinnaiSystem:
         """Turn circ fan on in while system is off."""
         cmd = UNIT_CIRC_FAN_ON
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
     async def set_unit_temp(self, temp: int) -> bool:
         """Set target temperature."""
-        cmd=UNIT_SET_TEMP
+        cmd = UNIT_SET_TEMP
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id,temp=temp))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, temp=temp)
+            )
             return True
         return False
 
@@ -175,8 +178,7 @@ class RinnaiSystem:
         """Set to auto mode."""
         cmd = UNIT_SET_AUTO
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
@@ -184,8 +186,7 @@ class RinnaiSystem:
         """Set to manual mode."""
         cmd = UNIT_SET_MANUAL
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
@@ -193,8 +194,7 @@ class RinnaiSystem:
         """Press advance button."""
         cmd = UNIT_ADVANCE
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
@@ -202,65 +202,79 @@ class RinnaiSystem:
         """Press advance cancel button."""
         cmd = UNIT_ADVANCE_CANCEL
         if self.validate_command(cmd):
-            self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id))
+            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id))
             return True
         return False
 
     async def turn_unit_zone_on(self, zone: str) -> bool:
         """Turn a zone on."""
-        cmd=UNIT_ZONE_ON
+        cmd = UNIT_ZONE_ON
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id,zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
     async def turn_unit_zone_off(self, zone: str) -> bool:
         """Turn a zone off."""
-        cmd=UNIT_ZONE_OFF
+        cmd = UNIT_ZONE_OFF
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id,zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
     async def set_unit_zone_temp(self, zone: str, temp: int) -> bool:
         """Set target temperature for a zone."""
-        cmd=UNIT_ZONE_SET_TEMP
+        cmd = UNIT_ZONE_SET_TEMP
         if self.validate_command(cmd):
             self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone, temp=temp))
+                cmd.format(
+                    unit_id=self._status.unit_status.unit_id, zone=zone, temp=temp
+                )
+            )
             return True
         return False
 
     async def set_unit_zone_auto(self, zone: str) -> bool:
         """Set zone to auto mode."""
-        cmd=UNIT_ZONE_SET_AUTO
+        cmd = UNIT_ZONE_SET_AUTO
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
     async def set_unit_zone_manual(self, zone: str) -> bool:
         """Set zone to manual mode."""
-        cmd=UNIT_ZONE_SET_MANUAL
+        cmd = UNIT_ZONE_SET_MANUAL
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
     async def set_unit_zone_advance(self, zone: str) -> bool:
         """Press zone advance button."""
-        cmd=UNIT_ZONE_ADVANCE
+        cmd = UNIT_ZONE_ADVANCE
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
     async def set_unit_zone_advance_cancel(self, zone: str) -> bool:
         """Press zone advance cacnel button."""
-        cmd=UNIT_ZONE_ADVANCE_CANCEL
+        cmd = UNIT_ZONE_ADVANCE_CANCEL
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -290,24 +304,27 @@ class RinnaiSystem:
 
     async def set_evap_fanspeed(self, speed: int) -> bool:
         """Set fan speed in evap mode."""
-        cmd=EVAP_FAN_SPEED
+        cmd = EVAP_FAN_SPEED
         if self.validate_command(cmd):
-            self.send_command(cmd.format(speed=f'{speed:02d}'))
+            self.send_command(cmd.format(speed=f"{speed:02d}"))
             return True
         return False
 
     async def set_unit_fanspeed(self, speed: int) -> bool:
         """Set fan speed."""
-        cmd=UNIT_CIRC_FAN_SPEED
+        cmd = UNIT_CIRC_FAN_SPEED
         if self.validate_command(cmd):
             self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id, peed=f'{speed:02d}'))
+                cmd.format(
+                    unit_id=self._status.unit_status.unit_id, peed=f"{speed:02d}"
+                )
+            )
             return True
         return False
 
     async def set_evap_comfort(self, comfort: int) -> bool:
         """Set comfort level in Evap auto mode."""
-        cmd=EVAP_SET_COMFORT
+        cmd = EVAP_SET_COMFORT
         if self.validate_command(cmd):
             self.send_command(cmd.format(comfort=comfort))
             return True
@@ -315,7 +332,7 @@ class RinnaiSystem:
 
     async def turn_evap_zone_on(self, zone: str) -> bool:
         """Turn zone off in Evap mode."""
-        cmd=EVAP_ZONE_ON
+        cmd = EVAP_ZONE_ON
         if self.validate_command(cmd):
             self.send_command(cmd.format(zone=zone))
             return True
@@ -323,7 +340,7 @@ class RinnaiSystem:
 
     async def turn_evap_zone_off(self, zone: str) -> bool:
         """Turn zone off in Evap mode."""
-        cmd=EVAP_ZONE_OFF
+        cmd = EVAP_ZONE_OFF
         if self.validate_command(cmd):
             self.send_command(cmd.format(zone=zone))
             return True
@@ -331,7 +348,7 @@ class RinnaiSystem:
 
     async def set_evap_zone_auto(self, zone: str) -> bool:
         """Set zone to Auto mode on Evap."""
-        cmd=EVAP_ZONE_SET_AUTO
+        cmd = EVAP_ZONE_SET_AUTO
         if self.validate_command(cmd):
             self.send_command(cmd.format(zone=zone))
             return True
@@ -339,7 +356,7 @@ class RinnaiSystem:
 
     async def set_evap_zone_manual(self, zone: str) -> bool:
         """Set zone to manual mode on Evap."""
-        cmd=EVAP_ZONE_SET_MANUAL
+        cmd = EVAP_ZONE_SET_MANUAL
         if self.validate_command(cmd):
             self.send_command(cmd.format(zone=zone))
             return True
@@ -353,8 +370,10 @@ class RinnaiSystem:
         """Validate a command is appropriat to the current operating mode."""
         if cmd in MODE_COMMANDS:
             return True
-        if cmd in UNIT_COMMANDS \
-            and self._status.mode in (RinnaiSystemMode.HEATING, RinnaiSystemMode.COOLING):
+        if cmd in UNIT_COMMANDS and self._status.mode in (
+            RinnaiSystemMode.HEATING,
+            RinnaiSystemMode.COOLING,
+        ):
             return True
         if cmd in EVAP_COMMANDS and self._status.mode == RinnaiSystemMode.EVAP:
             return True
@@ -369,23 +388,29 @@ class RinnaiSystem:
         if self.validate_command(cmd):
             self.send_command(cmd)
             return True
-        _LOGGER.error("Validation of command failed. Not sending. CMD: %s, Mode: %s", \
-            cmd, self._status.mode)
+        _LOGGER.error(
+            "Validation of command failed. Not sending. CMD: %s, Mode: %s",
+            cmd,
+            self._status.mode,
+        )
         return False
 
     def get_status(self) -> RinnaiSystemStatus:
         """Retrieve initial empty status from the unit."""
         if self._connection.renew_connection():
-            _LOGGER.debug("Client Connection: %s", self._connection) # pylint: disable=protected-access
+            _LOGGER.debug(
+                "Client Connection: %s", self._connection
+            )  # pylint: disable=protected-access
             self.poll_loop()
         else:
             _LOGGER.debug("renewing connection failed, ooops")
 
         return self._status
 
-    async def async_will_remove_from_hass(self) -> None:
+    def shutdown(self, event) -> None:
         """Call this when removing the integration from home assistant."""
         try:
-            self._connection.shutdown()
-        except: # pylint: disable=bare-except
+            _LOGGER.debug("Signaling shutdown to close connections (event: %s)", event)
+            self._connection.signal_shutdown()
+        except:  # pylint: disable=bare-except
             _LOGGER.debug("Nothing to close")
