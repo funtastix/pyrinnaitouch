@@ -9,23 +9,27 @@ from .util import daemonthreaded
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class RinnaiReceiver:
     """Receiver to handle receiving and sending data to the unit"""
 
     def __init__(self, connection: RinnaiConnection, receiverqueue: queue) -> None:
         self._connection = connection
         self._receiverqueue = receiverqueue
-        self._lastdata = ''
+        self._lastdata = ""
         self._counter = 0
 
     @daemonthreaded
     def receiver(self) -> None:
         """Main send and receive thread to process and send messages."""
         while True:
-            self._counter+=1
+            self._counter += 1
             # send next message if any
             try:
                 message = self._connection.get_queued_command()
+                if message.decode() == "sys.exit":
+                    self._receiverqueue.put('{"sys.exit":true}')
+                    break
                 self._connection.send(message)
                 _LOGGER.error("Fired off command: (%s)", message.decode())
                 time.sleep(0.05)
@@ -36,33 +40,43 @@ class RinnaiReceiver:
             except queue.Empty:
                 pass
 
-            #send empty command ever so often
+            # send empty command ever so often
             try:
                 self.send_empty_command()
             except (ConnectionError, TimeoutError) as err:
-                _LOGGER.error("Couldn't send empty command (connection): (%s)", repr(err))
+                _LOGGER.error(
+                    "Couldn't send empty command (connection): (%s)", repr(err)
+                )
 
-            #receive status
+            # receive status
             try:
                 self.receive_data()
             except ConnectionError as connerr:
-                _LOGGER.error("Couldn't decode JSON (connection), skipping (%s)", repr(connerr))
+                _LOGGER.error(
+                    "Couldn't decode JSON (connection), skipping (%s)", repr(connerr)
+                )
                 self._connection.shutdown()
                 self._connection.renew_connection()
             except (OSError, TimeoutError) as timeouterr:
-                _LOGGER.error("Socket timed out, renewing connection (%s)", repr(timeouterr))
+                _LOGGER.error(
+                    "Socket timed out, renewing connection (%s)", repr(timeouterr)
+                )
                 self._connection.shutdown()
                 self._connection.renew_connection()
             except AttributeError as atterr:
-                _LOGGER.error("Couldn't decode JSON (probably HELLO), skipping (%s)", repr(atterr))
+                _LOGGER.error(
+                    "Couldn't decode JSON (probably HELLO), skipping (%s)", repr(atterr)
+                )
+        _LOGGER.debug("Shutting down the receiver thread")
 
     def receive_data(self) -> None:
         """handle receiving and high level parsing of data."""
+        # pylint: disable=anomalous-backslash-in-string
         temp = self._connection.receive_data()
         if temp:
-            #_LOGGER.debug("Received data: (%s)", temp.decode())
+            # _LOGGER.debug("Received data: (%s)", temp.decode())
             data = temp
-            exp = re.search('^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$', str(data)) # pylint: disable=anomalous-backslash-in-string
+            exp = re.search("^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$", str(data))
             seq = int(exp.group(1))
             self._connection.update_send_sequence(seq)
             json_str = exp.group(2)
