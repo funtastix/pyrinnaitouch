@@ -31,7 +31,7 @@ class RinnaiReceiver:
                     self._receiverqueue.put('{"sys.exit":true}')
                     break
                 self._connection.send(message)
-                _LOGGER.error("Fired off command: (%s)", message.decode())
+                _LOGGER.debug("Fired off command: (%s)", message.decode())
                 time.sleep(0.05)
                 self._counter = 0
             except ConnectionError as connerr:
@@ -76,15 +76,20 @@ class RinnaiReceiver:
         if temp:
             # _LOGGER.debug("Received data: (%s)", temp.decode())
             data = temp
-            exp = re.search("^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$", str(data))
-            seq = int(exp.group(1))
-            self._connection.update_send_sequence(seq)
-            json_str = exp.group(2)
-            if json_str != self._lastdata:
-                _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
-                status_json = json.loads(json_str)
-                self._receiverqueue.put(status_json)
-                self._lastdata = json_str
+            if str(data) == "*HELLO":
+                _LOGGER.debug(
+                    "Received friendly HELLO from unit,not processing this one"
+                )
+            else:
+                exp = re.search("^.*([0-9]{6}).*(\[[^\[]*\])[^]]*$", str(data))
+                seq = int(exp.group(1))
+                self._connection.update_send_sequence(seq)
+                json_str = exp.group(2)
+                if json_str != self._lastdata:
+                    _LOGGER.debug("Sequence: %s Json: %s", seq, json_str)
+                    status_json = json.loads(json_str)
+                    self._receiverqueue.put(status_json)
+                    self._lastdata = json_str
 
     def send_empty_command(self) -> None:
         """Send empty command every 10 receive cycles."""
