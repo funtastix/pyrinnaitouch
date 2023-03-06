@@ -318,7 +318,7 @@ class RinnaiSystem:
         if self.validate_command(cmd):
             self.send_command(
                 cmd.format(
-                    unit_id=self._status.unit_status.unit_id, peed=f"{speed:02d}"
+                    unit_id=self._status.unit_status.unit_id, speed=f"{speed:02d}"
                 )
             )
             return True
