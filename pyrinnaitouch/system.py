@@ -169,7 +169,7 @@ class RinnaiSystem:
         cmd = UNIT_SET_TEMP
         if self.validate_command(cmd):
             self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id, temp=temp)
+                cmd.format(unit_id=self._status.unit_status.unit_id, temp=f"{temp:02d}")
             )
             return True
         return False
@@ -232,7 +232,9 @@ class RinnaiSystem:
         if self.validate_command(cmd):
             self.send_command(
                 cmd.format(
-                    unit_id=self._status.unit_status.unit_id, zone=zone, temp=temp
+                    unit_id=self._status.unit_status.unit_id,
+                    zone=zone,
+                    temp=f"{temp:02d}",
                 )
             )
             return True
