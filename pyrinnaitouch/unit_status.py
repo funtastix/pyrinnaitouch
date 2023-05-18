@@ -222,10 +222,10 @@ class RinnaiUnitStatus():
     def parse_zone_operation(self, is_multi_set_point: bool, zoneid: str, zone: Any) -> None:
         """Parse Zone Settings"""
         if zone and zoneid in self.zones.keys(): # pylint: disable=consider-iterating-dictionary
-                        # this one is single set point and multi set point with fan only
-            if is_multi_set_point or self.circulation_fan_on:
+            # this one is single set point and multi set point with fan only
+            if not is_multi_set_point or self.circulation_fan_on:
                 self.zones[zoneid].user_enabled = y_n_to_bool(get_attribute(zone,USER_ENABLED,None))
-                        # these ones are multi only
+            # these ones are multi only
             if is_multi_set_point:
                 self.zones[zoneid].set_temp = get_attribute(zone,SET_POINT, 999)
                 self.zones[zoneid].set_advanced(get_attribute(zone,SCHEDULE_OVERRIDE, None))
