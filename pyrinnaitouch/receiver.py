@@ -76,7 +76,7 @@ class RinnaiReceiver:
         if temp:
             # _LOGGER.debug("Received data: (%s)", temp.decode())
             data = temp
-            if str(data) == "*HELLO":
+            if str(data) == "*HELLO*":
                 _LOGGER.debug(
                     "Received friendly HELLO from unit,not processing this one"
                 )

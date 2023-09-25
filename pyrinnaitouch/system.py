@@ -2,6 +2,7 @@
 import logging
 import queue
 from typing import Any
+from datetime import datetime
 
 from .const import RinnaiSystemMode, RinnaiUnitId
 
@@ -32,6 +33,9 @@ from .commands import (
     MODE_HEAT_CMD,
     EVAP_COMMANDS,
     MODE_COMMANDS,
+    SYSTEM_ENTER_TIME_SETTING,
+    SYSTEM_SAVE_TIME,
+    SYSTEM_SET_TIME,
     UNIT_ADVANCE,
     UNIT_ADVANCE_CANCEL,
     UNIT_CIRC_FAN_ON,
@@ -103,13 +107,17 @@ class RinnaiSystem:
                 if "sys.exit" in new_status_json:
                     self._connection.shutdown()
                     break
-                status = RinnaiSystemStatus()
-                res = status.handle_status(new_status_json)
-                if res:
-                    self._status = status
+                if isinstance(new_status_json, list) and "SYST" in new_status_json[0] and "STM" in new_status_json[0]["SYST"]:
+                    self._status.set_timesetting(True)
                     self._on_updated()
                 else:
-                    self._connection.log_json_error()
+                    status = RinnaiSystemStatus()
+                    res = status.handle_status(new_status_json)
+                    if res:
+                        self._status = status
+                        self._on_updated()
+                    else:
+                        self._connection.log_json_error()
         _LOGGER.debug("Shutting down the polling thread")
 
     async def set_cooling_mode(self) -> bool:
@@ -363,6 +371,20 @@ class RinnaiSystem:
             self.send_command(cmd.format(zone=zone))
             return True
         return False
+
+    async def set_system_time(self, set_datetime: datetime = None) -> bool:
+        """Set system time."""
+        now = datetime.now()
+        if set_datetime is not None and isinstance(set_datetime, datetime):
+            now = set_datetime
+        set_time = now.strftime("%H:%M")
+        set_day = now.strftime("%a").upper()
+        result = self.validate_and_send(SYSTEM_ENTER_TIME_SETTING)
+        cmd = SYSTEM_SET_TIME
+        if self.validate_command(cmd):
+            result = self.send_command(cmd.format(day=set_day, time=set_time)) and result
+        result = self.validate_and_send(SYSTEM_SAVE_TIME) and result
+        return result
 
     def get_stored_status(self) -> RinnaiSystemStatus:
         """Get the current status without a refresh."""

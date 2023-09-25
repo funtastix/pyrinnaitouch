@@ -53,6 +53,7 @@ class RinnaiSystemStatus():
 
         #faults
         self.has_fault: bool = False
+        self.is_timesetting: bool = False
 
     def handle_status(self, status_json: Any) -> bool:
         """Handle the JSON response from the system."""
@@ -141,3 +142,8 @@ class RinnaiSystemStatus():
                 self.capabilities |= RinnaiCapabilities.COOLER
             if get_attribute(avm, COOLING_EVAPORATIVE, None) == MODULE_ENABLED:
                 self.capabilities |= RinnaiCapabilities.EVAP
+
+
+    def set_timesetting(self, is_setting: bool) -> None:
+        """Set system into time setting mode"""
+        self.is_timesetting = is_setting
