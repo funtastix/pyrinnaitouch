@@ -1,8 +1,8 @@
 ﻿"""Main system control"""
 import logging
 import queue
-from typing import Any
 from datetime import datetime
+from typing import Any
 
 from .const import RinnaiSystemMode, RinnaiUnitId
 
@@ -107,7 +107,11 @@ class RinnaiSystem:
                 if "sys.exit" in new_status_json:
                     self._connection.shutdown()
                     break
-                if isinstance(new_status_json, list) and "SYST" in new_status_json[0] and "STM" in new_status_json[0]["SYST"]:
+                if (
+                    isinstance(new_status_json, list) 
+                    and "SYST" in new_status_json[0] 
+                    and "STM" in new_status_json[0]["SYST"]
+                ):
                     self._status.set_timesetting(True)
                     self._on_updated()
                 else:
