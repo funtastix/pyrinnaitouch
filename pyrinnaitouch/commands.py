@@ -5,6 +5,10 @@ MODE_COOL_CMD = '{"SYST": {"OSS": {"MD": "C" } } }'
 MODE_EVAP_CMD = '{"SYST": {"OSS": {"MD": "E" } } }'
 MODE_HEAT_CMD = '{"SYST": {"OSS": {"MD": "H" } } }'
 
+SYSTEM_ENTER_TIME_SETTING = '{"SYST": {"OSS": {"ST": "C"}}}'
+SYSTEM_SET_TIME = '{{"SYST": {{"STM": {{"DY": "{day}", "TM": "{time}"}} }} }}'
+SYSTEM_SAVE_TIME = '{"SYST": {"STM": {"SV": "Y"}}}'
+
 UNIT_ON_CMD = '{{"{unit_id}": {{"OOP": {{"ST": "N" }} }} }}'
 UNIT_OFF_CMD = '{{"{unit_id}": {{"OOP": {{"ST": "F" }} }} }}'
 UNIT_CIRC_FAN_ON = '{{"{unit_id}": {{"OOP": {{"ST": "Z" }} }} }}'
@@ -85,5 +89,8 @@ MODE_COMMANDS = [
     UNIT_ON_CMD,
     EVAP_ON_CMD,
     UNIT_SET_AUTO,
-    UNIT_SET_MANUAL
+    UNIT_SET_MANUAL,
+    SYSTEM_ENTER_TIME_SETTING,
+    SYSTEM_SET_TIME,
+    SYSTEM_SAVE_TIME,
 ]
