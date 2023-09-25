@@ -108,8 +108,8 @@ class RinnaiSystem:
                     self._connection.shutdown()
                     break
                 if (
-                    isinstance(new_status_json, list) 
-                    and "SYST" in new_status_json[0] 
+                    isinstance(new_status_json, list)
+                    and "SYST" in new_status_json[0]
                     and "STM" in new_status_json[0]["SYST"]
                 ):
                     self._status.set_timesetting(True)
