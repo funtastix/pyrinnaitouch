@@ -1,4 +1,5 @@
 ﻿"""Main system control"""
+
 import logging
 import queue
 from datetime import datetime
@@ -11,8 +12,7 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-from .connection import RinnaiConnection
-from .receiver import RinnaiReceiver
+from .pollconnection import RinnaiPollConnection
 from .event import Event
 from .system_status import RinnaiSystemStatus
 from .commands import (
@@ -68,13 +68,16 @@ class RinnaiSystem:
     instances = {}
 
     def __init__(self, ip_address: str) -> None:
-        self._connection = RinnaiConnection(ip_address)
+        self._receiverqueue = queue.SimpleQueue()
+        self._connection = RinnaiPollConnection(ip_address, self._receiverqueue)
         self._lastupdated = 0
         self._status = RinnaiSystemStatus()
         self._nosendupdates = 0
-        self._receiverqueue = queue.Queue()
         RinnaiSystem.instances[ip_address] = self
         self._on_updated = Event()
+
+        # Start the thread
+        self.poll_loop()
 
     @staticmethod
     def get_instance(ip_address: str) -> Self:
@@ -94,18 +97,12 @@ class RinnaiSystem:
     @daemonthreaded
     def poll_loop(self) -> None:
         """Main poll thread to receive updated messages from the unit."""
-        # create the first connection
-        self._connection.renew_connection()
-        # start the receiver thread
-        receiver = RinnaiReceiver(self._connection, self._receiverqueue)
-        receiver.receiver()
 
         # enter loop, wait for received (new) messages and push them to hass
         while True:
             new_status_json = self._receiverqueue.get()
             if new_status_json:
                 if "sys.exit" in new_status_json:
-                    self._connection.shutdown()
                     break
                 if (
                     isinstance(new_status_json, list)
@@ -386,7 +383,9 @@ class RinnaiSystem:
         result = self.validate_and_send(SYSTEM_ENTER_TIME_SETTING)
         cmd = SYSTEM_SET_TIME
         if self.validate_command(cmd):
-            result = self.send_command(cmd.format(day=set_day, time=set_time)) and result
+            result = (
+                self.send_command(cmd.format(day=set_day, time=set_time)) and result
+            )
         result = self.validate_and_send(SYSTEM_SAVE_TIME) and result
         return result
 
@@ -409,7 +408,7 @@ class RinnaiSystem:
 
     def send_command(self, cmd: str) -> None:
         """Send the command to the unit."""
-        self._connection.dispatch_command(cmd)
+        self._connection.send_command(cmd)
 
     def validate_and_send(self, cmd: str) -> bool:
         """Validate and send a command."""
@@ -424,21 +423,16 @@ class RinnaiSystem:
         return False
 
     def get_status(self) -> RinnaiSystemStatus:
-        """Retrieve initial empty status from the unit."""
-        if self._connection.renew_connection():
-            _LOGGER.debug(
-                "Client Connection: %s", self._connection
-            )  # pylint: disable=protected-access
-            self.poll_loop()
-        else:
-            _LOGGER.debug("renewing connection failed, ooops")
-
+        """Retrieve (initially empty) status from the unit."""
+        self._connection.start_thread()
         return self._status
 
     def shutdown(self, event) -> None:
-        """Call this when removing the integration from home assistant."""
-        try:
-            _LOGGER.debug("Signaling shutdown to close connections (event: %s)", event)
-            self._connection.signal_shutdown()
-        except:  # pylint: disable=bare-except
-            _LOGGER.debug("Nothing to close")
+        # Pretty sure this is unnecessary.
+        pass
+        # """Call this when removing the integration from home assistant."""
+        # try:
+        #     _LOGGER.debug("Signaling shutdown to close connections (event: %s)", event)
+        #     self._connection.signal_shutdown()
+        # except:  # pylint: disable=bare-except
+        #     _LOGGER.debug("Nothing to close")

@@ -102,6 +102,9 @@ class RinnaiPollConnection:
             self._socket.close()
             self._socket = None
 
+        # Let anybody listening to the status know that we're exiting.
+        self._status_queue.put("sys.exit")
+
         RinnaiPollConnection.clients[self._ip_address] -= 1
         if RinnaiPollConnection.clients[self._ip_address] < 0:
             _LOGGER.error(
@@ -183,11 +186,12 @@ class RinnaiPollConnection:
             mask = selectors.EVENT_READ
             if len(self._writebuffer) > 0:
                 mask |= selectors.EVENT_WRITE
+                _LOGGER.debug("Selecting for write")
 
             selector.modify(self._socket, selectors.EVENT_READ)
 
             events = selector.select(0.1)
-            for key, mask in events:
+            for _key, mask in events:
                 if mask & selectors.EVENT_READ:
                     # There is data available on the socket. Receive it into the buffer for now, process
                     # after we've been through all the events.
@@ -212,41 +216,22 @@ class RinnaiPollConnection:
                         _LOGGER.error("Socket error on recv: %s. Reconnecting", ose)
                         self._update_socket_state(RinnaiConnectionState.IDLE)
 
-                elif mask & selectors.EVENT_WRITE:
+                if mask & selectors.EVENT_WRITE:
                     # We are able to write to the socket, and have something to say.
-                    try:
-                        _LOGGER.debug(
-                            "Will attempt to send %d bytes", len(self._writebuffer)
-                        )
-                        num_sent = self._socket.send(self._writebuffer)
-                        self._writebuffer = self._writebuffer[num_sent:]
-                        _LOGGER.debug("Sent %d bytes", num_sent)
-                        self._last_command_time = time.time()
-                        if len(self._writebuffer) > 0:
-                            _LOGGER.warning(
-                                "There are %d bytes remaining to send. There may be network congestion, or the "
-                                "connection is about to fail"
-                            )
-                    except OSError as ose:
-                        _LOGGER.error("Socket error on send: %s. Reconnecting", ose)
-                        self._update_socket_state(RinnaiConnectionState.IDLE)
-                else:
-                    # Should probably be fatal?
-                    _LOGGER.error(
-                        "Unknown key and/or mask event in select: %s, %s",
-                        str(key),
-                        str(mask),
-                    )
+                    self._attempt_send()
+
             # Now process the command queue. We don't wait for anything to arrive here, the waiting only
             # happens in the select socket call.
             while True:
                 try:
                     command = self._sendqueue.get_nowait()
-                    # A command is ready to be sent. Format it, place it into the writebuffer and register
-                    # for socket write readiness.
+                    # A command is ready to be sent. Format it, place it into the writebuffer and attempt
+                    #  to send it.
                     sequence_header = "N" + str(self._command_sequence).zfill(6)
                     self._writebuffer.extend(sequence_header.encode())
                     self._writebuffer.extend(command.encode())
+                    _LOGGER.debug("Sending command %d", self._command_sequence)
+                    self._attempt_send()
 
                     # Increment the command sequence and wrap around 255
                     self._command_sequence += 1
@@ -260,6 +245,7 @@ class RinnaiPollConnection:
                     ):
                         _LOGGER.debug("Sending idle command")
                         self._writebuffer.extend(b"NA")
+                        self._attempt_send()
 
                         # Update the time here in case the socket doesn't become write available quickly.
                         self._last_command_time = time.time()
@@ -274,6 +260,25 @@ class RinnaiPollConnection:
 
             self._process_received_data()
 
+    def _attempt_send(self) -> None:
+        # Attempt to send the contents of the write buffer. Only remove bytes that are successfully sent,
+        # which may not be all that we requested. Any bytes remaining in the buffer will be caught in the
+        # next select call.
+        try:
+            num_sent = self._socket.send(self._writebuffer)
+            _LOGGER.debug("Sent %d of %d bytes", num_sent, len(self._writebuffer))
+            self._writebuffer = self._writebuffer[num_sent:]
+
+            self._last_command_time = time.time()
+            if len(self._writebuffer) > 0:
+                _LOGGER.warning(
+                    "There are %d bytes remaining to send. There may be network congestion, or the "
+                    "connection is about to fail"
+                )
+        except OSError as ose:
+            _LOGGER.error("Socket error on send: %s. Reconnecting", ose)
+            self._update_socket_state(RinnaiConnectionState.IDLE)
+
     def _process_received_data(self) -> None:
         # _LOGGER.debug("Number of bytes in buffer: %d", len(self._readbuffer))
 
@@ -283,7 +288,7 @@ class RinnaiPollConnection:
         # At least 7 bytes are required for either the *HELLO* or NXXXXXX portions.
         # No point trying if less data than that is in the buffer.
         while len(self._readbuffer) >= 7:
-            if self._readbuffer.startswith(b"*HELLO*"):
+            if self._readbuffer.startswith(HELLO):
                 if not self._hello_received:
                     _LOGGER.info("Hello message successfully received from unit")
                     self._readbuffer = self._readbuffer[len(HELLO) :]
@@ -294,7 +299,8 @@ class RinnaiPollConnection:
             elif self._readbuffer.startswith(START_MARKER):
                 if match := re.match(r"N(\d{6})(\[.*?\])", self._readbuffer.decode()):
                     # First match is sequence number
-                    # Theoretically the match here contains the JSON status to be parsed. However, we need to handle that it may be incomplete.
+                    # Second match is the JSON status to be parsed. Note that the match requires the closing bracket
+                    # to be present, to ensure we have a complete status.
                     self._last_received_sequence_num = int(match.group(1)[1:])
                     _LOGGER.debug(
                         "Received sequence number %d", self._last_received_sequence_num
