@@ -86,6 +86,16 @@ class RinnaiSystem:
             return RinnaiSystem.instances[ip_address]
         return RinnaiSystem(ip_address)
 
+    @staticmethod
+    def remove_instance(ip_address: str) -> None:
+        """Remove an instance of the system defined by its IP address."""
+        if ip_address in RinnaiSystem.instances:
+            RinnaiSystem.instances[ip_address].shutdown()
+            del RinnaiSystem.instances[ip_address]
+            _LOGGER.debug("Removed instance for IP: %s", ip_address)
+        else:
+            _LOGGER.warning("No instance found for IP: %s", ip_address)
+
     def subscribe_updates(self, obj_method: Any) -> None:
         """Subscribe to updates when the system status refreshes."""
         self._on_updated += obj_method
@@ -118,7 +128,7 @@ class RinnaiSystem:
                         self._status = status
                         self._on_updated()
                     else:
-                        self._connection.log_json_error()
+                        _LOGGER.error("JSON Error: %s", new_status_json)
         _LOGGER.debug("Shutting down the polling thread")
 
     async def set_cooling_mode(self) -> bool:
@@ -422,17 +432,23 @@ class RinnaiSystem:
         )
         return False
 
+    def register_socket_state_handler(self, socket_handler: Any) -> None:
+        """Register a socket state handler to receive updates."""
+        self._connection.register_socket_state_handler(socket_handler)
+
+    def unregister_socket_state_handler(self, socket_handler: Any) -> None:
+        """Unregister a socket state handler."""
+        self._connection.unregister_socket_state_handler(socket_handler)
+
     def get_status(self) -> RinnaiSystemStatus:
         """Retrieve (initially empty) status from the unit."""
         self._connection.start_thread()
         return self._status
 
-    def shutdown(self, event) -> None:
-        # Pretty sure this is unnecessary.
-        pass
-        # """Call this when removing the integration from home assistant."""
-        # try:
-        #     _LOGGER.debug("Signaling shutdown to close connections (event: %s)", event)
-        #     self._connection.signal_shutdown()
-        # except:  # pylint: disable=bare-except
-        #     _LOGGER.debug("Nothing to close")
+    def shutdown(self) -> None:
+        """Call this when removing the integration from home assistant."""
+        try:
+            self._connection.stop_thread()
+            _LOGGER.debug("Connection thread stopped")
+        except:  # pylint: disable=bare-except
+            _LOGGER.debug("Error stopping the connection thread")

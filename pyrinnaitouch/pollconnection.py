@@ -57,8 +57,6 @@ class RinnaiPollConnection:
             )
             raise RuntimeError("Cannot have two connections to the same address")
 
-        _LOGGER.setLevel(logging.DEBUG)
-
         # Queue of commands (each as a string) to send to the unit.
         self._sendqueue = SimpleQueue()
 
@@ -86,6 +84,10 @@ class RinnaiPollConnection:
         self._sendqueue.put(command)
 
     def __del__(self):
+        """Destructor to ensure the thread is stopped and the socket closed."""
+        self.stop_thread()
+
+    def stop_thread(self) -> None:
         """Stop the thread, close the socket, and decrement the connection tracker."""
         if self._socketthread is not None and self._socketthread.is_alive():
             self._thread_exit_flag = True
@@ -142,7 +144,9 @@ class RinnaiPollConnection:
                 handler(self._socketstate)
                 self._connection_state_handlers.append(handler)
             except TypeError as te:
-                _LOGGER.error("Could not call socket handler: %s", te)
+                _LOGGER.error(
+                    "Registration failed - could not call socket handler: %s", te
+                )
 
     def unregister_socket_state_handler(self, handler) -> None:
         """Unregister a socket state handler."""
@@ -166,8 +170,8 @@ class RinnaiPollConnection:
         _LOGGER.debug("Starting event loop within thread")
         while not self._thread_exit_flag:
             # Connect, then monitor. Repeat ad infinitum, unless we've been told to exit.
-            # TODO test this with an unknown host, both qualified and unqualified.
             self._create_socket_and_connect()
+            # Note that this only returns on disconnect/socket error, or when the thread exit flag is set.
             self._monitor_socket_and_queue()
 
     def _monitor_socket_and_queue(self) -> None:
