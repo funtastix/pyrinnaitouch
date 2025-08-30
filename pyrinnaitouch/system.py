@@ -1,4 +1,5 @@
 ﻿"""Main system control"""
+
 import logging
 import queue
 from datetime import datetime
@@ -11,8 +12,7 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-from .connection import RinnaiConnection
-from .receiver import RinnaiReceiver
+from .pollconnection import RinnaiPollConnection
 from .event import Event
 from .system_status import RinnaiSystemStatus
 from .commands import (
@@ -68,13 +68,16 @@ class RinnaiSystem:
     instances = {}
 
     def __init__(self, ip_address: str) -> None:
-        self._connection = RinnaiConnection(ip_address)
+        self._receiverqueue = queue.SimpleQueue()
+        self._connection = RinnaiPollConnection(ip_address, self._receiverqueue)
         self._lastupdated = 0
         self._status = RinnaiSystemStatus()
         self._nosendupdates = 0
-        self._receiverqueue = queue.Queue()
         RinnaiSystem.instances[ip_address] = self
         self._on_updated = Event()
+
+        # Start the thread
+        self.poll_loop()
 
     @staticmethod
     def get_instance(ip_address: str) -> Self:
@@ -82,6 +85,16 @@ class RinnaiSystem:
         if ip_address in RinnaiSystem.instances:
             return RinnaiSystem.instances[ip_address]
         return RinnaiSystem(ip_address)
+
+    @staticmethod
+    def remove_instance(ip_address: str) -> None:
+        """Remove an instance of the system defined by its IP address."""
+        if ip_address in RinnaiSystem.instances:
+            RinnaiSystem.instances[ip_address].shutdown()
+            del RinnaiSystem.instances[ip_address]
+            _LOGGER.debug("Removed instance for IP: %s", ip_address)
+        else:
+            _LOGGER.warning("No instance found for IP: %s", ip_address)
 
     def subscribe_updates(self, obj_method: Any) -> None:
         """Subscribe to updates when the system status refreshes."""
@@ -94,18 +107,12 @@ class RinnaiSystem:
     @daemonthreaded
     def poll_loop(self) -> None:
         """Main poll thread to receive updated messages from the unit."""
-        # create the first connection
-        self._connection.renew_connection()
-        # start the receiver thread
-        receiver = RinnaiReceiver(self._connection, self._receiverqueue)
-        receiver.receiver()
 
         # enter loop, wait for received (new) messages and push them to hass
         while True:
             new_status_json = self._receiverqueue.get()
             if new_status_json:
                 if "sys.exit" in new_status_json:
-                    self._connection.shutdown()
                     break
                 if (
                     isinstance(new_status_json, list)
@@ -121,7 +128,7 @@ class RinnaiSystem:
                         self._status = status
                         self._on_updated()
                     else:
-                        self._connection.log_json_error()
+                        _LOGGER.error("JSON Error: %s", new_status_json)
         _LOGGER.debug("Shutting down the polling thread")
 
     async def set_cooling_mode(self) -> bool:
@@ -386,7 +393,9 @@ class RinnaiSystem:
         result = self.validate_and_send(SYSTEM_ENTER_TIME_SETTING)
         cmd = SYSTEM_SET_TIME
         if self.validate_command(cmd):
-            result = self.send_command(cmd.format(day=set_day, time=set_time)) and result
+            result = (
+                self.send_command(cmd.format(day=set_day, time=set_time)) and result
+            )
         result = self.validate_and_send(SYSTEM_SAVE_TIME) and result
         return result
 
@@ -409,7 +418,7 @@ class RinnaiSystem:
 
     def send_command(self, cmd: str) -> None:
         """Send the command to the unit."""
-        self._connection.dispatch_command(cmd)
+        self._connection.send_command(cmd)
 
     def validate_and_send(self, cmd: str) -> bool:
         """Validate and send a command."""
@@ -423,22 +432,23 @@ class RinnaiSystem:
         )
         return False
 
-    def get_status(self) -> RinnaiSystemStatus:
-        """Retrieve initial empty status from the unit."""
-        if self._connection.renew_connection():
-            _LOGGER.debug(
-                "Client Connection: %s", self._connection
-            )  # pylint: disable=protected-access
-            self.poll_loop()
-        else:
-            _LOGGER.debug("renewing connection failed, ooops")
+    def register_socket_state_handler(self, socket_handler: Any) -> None:
+        """Register a socket state handler to receive updates."""
+        self._connection.register_socket_state_handler(socket_handler)
 
+    def unregister_socket_state_handler(self, socket_handler: Any) -> None:
+        """Unregister a socket state handler."""
+        self._connection.unregister_socket_state_handler(socket_handler)
+
+    def get_status(self) -> RinnaiSystemStatus:
+        """Retrieve (initially empty) status from the unit."""
+        self._connection.start_thread()
         return self._status
 
-    def shutdown(self, event) -> None:
+    def shutdown(self) -> None:
         """Call this when removing the integration from home assistant."""
         try:
-            _LOGGER.debug("Signaling shutdown to close connections (event: %s)", event)
-            self._connection.signal_shutdown()
+            self._connection.stop_thread()
+            _LOGGER.debug("Connection thread stopped")
         except:  # pylint: disable=bare-except
-            _LOGGER.debug("Nothing to close")
+            _LOGGER.debug("Error stopping the connection thread")
