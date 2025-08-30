@@ -13,11 +13,6 @@ import time
 from time import sleep
 
 _LOGGER = logging.getLogger(__name__)
-# handler = logging.StreamHandler(sys.stdout)
-# handler.setLevel(logging.DEBUG)
-# _LOGGER.addHandler(handler)
-# TODO: Remove
-# _LOGGER.setLevel(logging.DEBUG)
 
 
 class RinnaiConnectionState(enum.Enum):
