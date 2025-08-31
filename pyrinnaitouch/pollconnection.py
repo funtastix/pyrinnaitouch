@@ -26,11 +26,11 @@ class RinnaiConnectionState(enum.Enum):
     ERROR = 6
 
 
-class RinnaiPollConnection:
+class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
     """Manage the non-blocking connection to the unit."""
 
-    # Global map of IP addresses currently in use. Only used to track when multiple connections are attempted,
-    # since we know how poorly the hardware handles this.
+    # Global map of IP addresses currently in use. Only used to track when multiple
+    # connections are attempted, since we know how poorly the hardware handles this.
     clients = defaultdict(int)
 
     def __init__(self, ip_address: str, status_queue: SimpleQueue) -> None:
@@ -47,7 +47,8 @@ class RinnaiPollConnection:
         RinnaiPollConnection.clients[ip_address] += 1
         if RinnaiPollConnection.clients[ip_address] > 1:
             _LOGGER.error(
-                "Attempting duplicate connection to unit at %s, which the hardware will not support",
+                "Attempting duplicate connection to unit at %s, which the hardware "
+                "will not support",
                 ip_address,
             )
             raise RuntimeError("Cannot have two connections to the same address")
@@ -66,7 +67,8 @@ class RinnaiPollConnection:
         self._readbuffer = bytearray()
         self._writebuffer = bytearray()
 
-        # List of functions to call whenever _socketstate changes (single argument, RinnaiConnectionState)
+        # List of functions to call whenever _socketstate changes
+        # Provides a single argument, RinnaiConnectionState
         self._connection_state_handlers = []
 
         # Outbound queue of JSON status
@@ -89,7 +91,8 @@ class RinnaiPollConnection:
             self._socketthread.join(11)
             if self._socketthread.is_alive():
                 _LOGGER.error("Could not stop monitoring thread")
-                # Attempt to daemonise the thread since this should still allow the process to exit.
+                # Attempt to daemonise the thread since this should still allow the
+                # process to exit.
                 self._socketthread.daemon = True
             else:
                 self._socketthread = None
@@ -105,7 +108,8 @@ class RinnaiPollConnection:
         RinnaiPollConnection.clients[self._ip_address] -= 1
         if RinnaiPollConnection.clients[self._ip_address] < 0:
             _LOGGER.error(
-                "Somehow we have a negative number of connections; something has gone very wrong"
+                "Somehow we have a negative number of connections; something has "
+                "gone very wrong"
             )
             # Try to restore some sanity
             RinnaiPollConnection.clients[self._ip_address] = 0
@@ -132,7 +136,9 @@ class RinnaiPollConnection:
     def register_socket_state_handler(self, handler) -> None:
         """Register a new handler interested in socket state updates.
 
-        The new handler immediately gets called with the current status, and if successfully executed is added to the handler list. Duplicate handlers are ignored.
+        The new handler immediately gets called with the current status, and if
+        successfully executed is added to the handler list. Duplicate handlers are
+        ignored.
         """
         if handler not in self._connection_state_handlers:
             try:
@@ -149,7 +155,8 @@ class RinnaiPollConnection:
             self._connection_state_handlers.remove(handler)
 
     def start_thread(self) -> None:
-        """Attempt connection to the unit. Results are reflected via connection_state property."""
+        """Attempt connection to the unit. Results are reflected via connection_state
+        property."""
 
         if self._socketthread is None or not self._socketthread.is_alive():
             _LOGGER.debug("Starting thread")
@@ -164,14 +171,17 @@ class RinnaiPollConnection:
         """Thread that polls the socket and command queue and reacts accordingly."""
         _LOGGER.debug("Starting event loop within thread")
         while not self._thread_exit_flag:
-            # Connect, then monitor. Repeat ad infinitum, unless we've been told to exit.
+            # Connect, then monitor. Repeat ad infinitum, unless we've been told
+            # to exit.
             self._create_socket_and_connect()
-            # Note that this only returns on disconnect/socket error, or when the thread exit flag is set.
+            # Note that this only returns on disconnect/socket error, or when the thread
+            # exit flag is set.
             self._monitor_socket_and_queue()
 
     def _monitor_socket_and_queue(self) -> None:
-        # Create the selector and register for read events on the socket and the send queue.
-        # Write events on the socket aren't selected for until we have something to say.
+        # Create the selector and register for read events on the socket and the send
+        # queue.  Write events on the socket aren't selected for until we have something
+        # to say.
         selector = selectors.DefaultSelector()
         selector.register(self._socket, selectors.EVENT_READ)
 
@@ -192,16 +202,16 @@ class RinnaiPollConnection:
             events = selector.select(0.1)
             for _key, mask in events:
                 if mask & selectors.EVENT_READ:
-                    # There is data available on the socket. Receive it into the buffer for now, process
-                    # after we've been through all the events.
+                    # There is data available on the socket. Receive it into the buffer
+                    # for now, process after we've been through all the events.
                     self._last_received_time = time.time()
                     try:
                         newbytes = self._socket.recv(8096)
                         _LOGGER.debug("Read %d bytes from socket", len(newbytes))
 
                         if len(newbytes) == 0:
-                            # The socket has disconnected. This will be caught on the next loop and reconnection
-                            # attempted.
+                            # The socket has disconnected. This will be caught on the
+                            # next loop and reconnection attempted.
                             _LOGGER.info("Socket disconnected. Reconnecting")
                             self._update_socket_state(RinnaiConnectionState.IDLE)
                         else:
@@ -219,13 +229,13 @@ class RinnaiPollConnection:
                     # We are able to write to the socket, and have something to say.
                     self._attempt_send()
 
-            # Now process the command queue. We don't wait for anything to arrive here, the waiting only
-            # happens in the select socket call.
+            # Now process the command queue. We don't wait for anything to arrive here,
+            # the waiting only happens in the select socket call.
             while True:
                 try:
                     command = self._sendqueue.get_nowait()
-                    # A command is ready to be sent. Format it, place it into the writebuffer and attempt
-                    #  to send it.
+                    # A command is ready to be sent. Format it, place it into the
+                    # writebuffer and attempt to send it.
                     sequence_header = "N" + str(self._command_sequence).zfill(6)
                     self._writebuffer.extend(sequence_header.encode())
                     self._writebuffer.extend(command.encode())
@@ -236,8 +246,8 @@ class RinnaiPollConnection:
                     self._command_sequence += 1
                     self._command_sequence %= 255
                 except Empty:
-                    # Nothing in the queue for now. Consider sending an empty command if it's been long enough,
-                    # and then break out of this loop.
+                    # Nothing in the queue for now. Consider sending an empty command
+                    # if it's been long enough, and then break out of this loop.
                     if (
                         time.time() - self._last_command_time
                         > self._command_timeout_seconds
@@ -246,7 +256,8 @@ class RinnaiPollConnection:
                         self._writebuffer.extend(b"NA")
                         self._attempt_send()
 
-                        # Update the time here in case the socket doesn't become write available quickly.
+                        # Update the time here in case the socket doesn't become
+                        # write available quickly.
                         self._last_command_time = time.time()
 
                     break
@@ -260,9 +271,9 @@ class RinnaiPollConnection:
             self._process_received_data()
 
     def _attempt_send(self) -> None:
-        # Attempt to send the contents of the write buffer. Only remove bytes that are successfully sent,
-        # which may not be all that we requested. Any bytes remaining in the buffer will be caught in the
-        # next select call.
+        # Attempt to send the contents of the write buffer. Only remove bytes that are
+        # successfully sent,  which may not be all that we requested. Any bytes
+        # remaining in the buffer will be caught in the next select call.
         try:
             num_sent = self._socket.send(self._writebuffer)
             _LOGGER.debug("Sent %d of %d bytes", num_sent, len(self._writebuffer))
@@ -271,8 +282,8 @@ class RinnaiPollConnection:
             self._last_command_time = time.time()
             if len(self._writebuffer) > 0:
                 _LOGGER.warning(
-                    "There are %d bytes remaining to send. There may be network congestion, or the "
-                    "connection is about to fail"
+                    "There are %d bytes remaining to send. There may be network "
+                    "congestion, or the connection is about to fail"
                 )
         except OSError as ose:
             _LOGGER.error("Socket error on send: %s. Reconnecting", ose)
@@ -282,8 +293,8 @@ class RinnaiPollConnection:
         # _LOGGER.debug("Number of bytes in buffer: %d", len(self._readbuffer))
 
         # Constants
-        HELLO = b"*HELLO*"
-        START_MARKER = b"N"
+        HELLO = b"*HELLO*"  # pylint: disable=invalid-name
+        START_MARKER = b"N"  # pylint: disable=invalid-name
         # At least 7 bytes are required for either the *HELLO* or NXXXXXX portions.
         # No point trying if less data than that is in the buffer.
         while len(self._readbuffer) >= 7:
@@ -293,13 +304,15 @@ class RinnaiPollConnection:
                     self._readbuffer = self._readbuffer[len(HELLO) :]
                 else:
                     _LOGGER.error(
-                        "Hello message received more than once! Has the unit reset somehow?"
+                        "Hello message received more than once! Has the unit reset "
+                        "somehow?"
                     )
             elif self._readbuffer.startswith(START_MARKER):
                 if match := re.match(r"N(\d{6})(\[.*?\])", self._readbuffer.decode()):
                     # First match is sequence number
-                    # Second match is the JSON status to be parsed. Note that the match requires the closing bracket
-                    # to be present, to ensure we have a complete status.
+                    # Second match is the JSON status to be parsed. Note that the match
+                    # requires the closing bracket to be present, to ensure we have a
+                    # complete status.
                     self._last_received_sequence_num = int(match.group(1)[1:])
                     _LOGGER.debug(
                         "Received sequence number %d", self._last_received_sequence_num
@@ -316,7 +329,8 @@ class RinnaiPollConnection:
                     self._readbuffer = self._readbuffer[match.end() :]
                 else:
                     _LOGGER.debug("Did not match regexp: %s", self._readbuffer)
-            # Something has already gone wrong, but maybe we can recover by looking for the next marker.
+            # Something has already gone wrong, but maybe we can recover by looking for
+            # the next marker.
             elif match := re.match(r"N(\d{6})", self._readbuffer.decode()):
                 # Cut everything before the NXXXXXX pattern.
                 _LOGGER.warning("Error parsing data, attempting recovery")
@@ -324,7 +338,8 @@ class RinnaiPollConnection:
                 self._readbuffer = self._readbuffer[match.start(1) :]
             else:
                 _LOGGER.error(
-                    "Buffer does not start with '*HELLO*' or 'N'. Something hasn't parsed correctly, reconnecting"
+                    "Buffer does not start with '*HELLO*' or 'N'. Something hasn't "
+                    "parsed correctly, reconnecting"
                 )
                 _LOGGER.debug("Current buffer: %s", self._readbuffer)
                 self._update_socket_state(RinnaiConnectionState.ERROR)
@@ -337,8 +352,9 @@ class RinnaiPollConnection:
             try:
                 self._socket.shutdown(socket.SHUT_RDWR)
                 self._socket.close()
-            except Exception:  # pylint: disable=broad-exception-caught
-                # It's not worth reporting anything here as we already knew the socket was a bit broken.
+            except Exception:  # pylint: disable=broad-exception-caught  # noqa: BLE001
+                # It's not worth reporting anything here as we already knew the socket
+                # was a bit broken.
                 pass
 
         while (
@@ -369,7 +385,8 @@ class RinnaiPollConnection:
                 self._update_socket_state(RinnaiConnectionState.TIMEOUT)
                 sleep(5)
             except (ConnectionError, BlockingIOError, InterruptedError):
-                # All of these things could be transient, so try again after a small wait.
+                # All of these things could be transient, so try again after a
+                # small wait.
                 sleep(10)
             except OSError as e:
                 self._update_socket_state(RinnaiConnectionState.ERROR)
