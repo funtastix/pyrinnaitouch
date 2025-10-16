@@ -159,7 +159,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         property."""
 
         if self._socketthread is None or not self._socketthread.is_alive():
-            _LOGGER.debug("Starting thread")
+            _LOGGER.debug("Starting connection thread")
             self._socketthread = threading.Thread(
                 target=self._event_loop, name="RinnaiPollConnection"
             )
