@@ -98,8 +98,17 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 self._socketthread = None
 
         if self._socket is not None:
-            self._socket.shutdown(socket.SHUT_RDWR)
-            self._socket.close()
+            # Do our best to tidy up the socket.
+            try:
+                self._socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                _LOGGER.debug("Socket shutdown failed, likely was not connected")
+
+            try:
+                self._socket.close()
+            except OSError:
+                _LOGGER.debug("Socket close failed, likely was not open")
+
             self._socket = None
 
         # Let anybody listening to the status know that we're exiting.
