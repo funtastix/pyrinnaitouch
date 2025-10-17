@@ -88,7 +88,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         """Stop the thread, close the socket, and decrement the connection tracker."""
         if self._socketthread is not None and self._socketthread.is_alive():
             self._thread_exit_flag = True
-            self._socketthread.join(11)
+            self._socketthread.join(5)
             if self._socketthread.is_alive():
                 _LOGGER.error("Could not stop monitoring thread")
                 # Attempt to daemonise the thread since this should still allow the
@@ -96,10 +96,20 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 self._socketthread.daemon = True
             else:
                 self._socketthread = None
+                _LOGGER.debug("Monitoring thread confirmed stopped")
 
         if self._socket is not None:
-            self._socket.shutdown(socket.SHUT_RDWR)
-            self._socket.close()
+            # Do our best to tidy up the socket.
+            try:
+                self._socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                _LOGGER.debug("Socket shutdown failed, likely was not connected")
+
+            try:
+                self._socket.close()
+            except OSError:
+                _LOGGER.debug("Socket close failed, likely was not open")
+
             self._socket = None
 
         # Let anybody listening to the status know that we're exiting.
@@ -159,7 +169,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         property."""
 
         if self._socketthread is None or not self._socketthread.is_alive():
-            _LOGGER.debug("Starting thread")
+            _LOGGER.debug("Starting connection thread")
             self._socketthread = threading.Thread(
                 target=self._event_loop, name="RinnaiPollConnection"
             )
@@ -283,7 +293,8 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
             if len(self._writebuffer) > 0:
                 _LOGGER.warning(
                     "There are %d bytes remaining to send. There may be network "
-                    "congestion, or the connection is about to fail"
+                    "congestion, or the connection is about to fail",
+                    len(self._writebuffer),
                 )
         except OSError as ose:
             _LOGGER.error("Socket error on send: %s. Reconnecting", ose)

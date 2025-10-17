@@ -229,7 +229,9 @@ class RinnaiSystem:
         """Turn a zone on."""
         cmd = UNIT_ZONE_ON
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -237,7 +239,9 @@ class RinnaiSystem:
         """Turn a zone off."""
         cmd = UNIT_ZONE_OFF
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -259,7 +263,9 @@ class RinnaiSystem:
         """Set zone to auto mode."""
         cmd = UNIT_ZONE_SET_AUTO
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -267,7 +273,9 @@ class RinnaiSystem:
         """Set zone to manual mode."""
         cmd = UNIT_ZONE_SET_MANUAL
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -275,7 +283,9 @@ class RinnaiSystem:
         """Press zone advance button."""
         cmd = UNIT_ZONE_ADVANCE
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -283,7 +293,9 @@ class RinnaiSystem:
         """Press zone advance cacnel button."""
         cmd = UNIT_ZONE_ADVANCE_CANCEL
         if self.validate_command(cmd):
-            self.send_command(cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone))
+            self.send_command(
+                cmd.format(unit_id=self._status.unit_status.unit_id, zone=zone)
+            )
             return True
         return False
 
@@ -324,7 +336,9 @@ class RinnaiSystem:
         cmd = UNIT_CIRC_FAN_SPEED
         if self.validate_command(cmd):
             self.send_command(
-                cmd.format(unit_id=self._status.unit_status.unit_id, speed=f"{speed:02d}")
+                cmd.format(
+                    unit_id=self._status.unit_status.unit_id, speed=f"{speed:02d}"
+                )
             )
             return True
         return False
@@ -379,9 +393,10 @@ class RinnaiSystem:
         result = self.validate_and_send(SYSTEM_ENTER_TIME_SETTING)
         cmd = SYSTEM_SET_TIME
         if self.validate_command(cmd):
-            result = self.send_command(cmd.format(day=set_day, time=set_time)) and result
-        result = self.validate_and_send(SYSTEM_SAVE_TIME) and result
-        return result
+            result = (
+                self.send_command(cmd.format(day=set_day, time=set_time)) and result
+            )
+        return self.validate_and_send(SYSTEM_SAVE_TIME) and result
 
     def get_stored_status(self) -> RinnaiSystemStatus:
         """Get the current status without a refresh."""
@@ -434,5 +449,5 @@ class RinnaiSystem:
         try:
             self._connection.stop_thread()
             _LOGGER.debug("Connection thread stopped")
-        except:  # pylint: disable=bare-except  # noqa: E722
-            _LOGGER.debug("Error stopping the connection thread")
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Error stopping the connection thread")
