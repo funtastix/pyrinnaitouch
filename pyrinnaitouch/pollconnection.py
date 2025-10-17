@@ -88,7 +88,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         """Stop the thread, close the socket, and decrement the connection tracker."""
         if self._socketthread is not None and self._socketthread.is_alive():
             self._thread_exit_flag = True
-            self._socketthread.join(11)
+            self._socketthread.join(5)
             if self._socketthread.is_alive():
                 _LOGGER.error("Could not stop monitoring thread")
                 # Attempt to daemonise the thread since this should still allow the
@@ -96,6 +96,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 self._socketthread.daemon = True
             else:
                 self._socketthread = None
+                _LOGGER.debug("Monitoring thread confirmed stopped")
 
         if self._socket is not None:
             # Do our best to tidy up the socket.
@@ -292,7 +293,8 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
             if len(self._writebuffer) > 0:
                 _LOGGER.warning(
                     "There are %d bytes remaining to send. There may be network "
-                    "congestion, or the connection is about to fail"
+                    "congestion, or the connection is about to fail",
+                    len(self._writebuffer),
                 )
         except OSError as ose:
             _LOGGER.error("Socket error on send: %s. Reconnecting", ose)
