@@ -396,8 +396,7 @@ class RinnaiSystem:
             result = (
                 self.send_command(cmd.format(day=set_day, time=set_time)) and result
             )
-        result = self.validate_and_send(SYSTEM_SAVE_TIME) and result
-        return result
+        return self.validate_and_send(SYSTEM_SAVE_TIME) and result
 
     def get_stored_status(self) -> RinnaiSystemStatus:
         """Get the current status without a refresh."""
