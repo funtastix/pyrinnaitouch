@@ -267,7 +267,6 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     self._writebuffer.extend(command.encode())
                     _LOGGER.debug("Sending command %d", self._command_sequence)
                     self._attempt_send()
-                    _LOGGER.debug("Command wait start")
                     self._command_wait = True
                 
                 except Empty:
@@ -288,7 +287,6 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                         # Update the time here in case the socket doesn't become
                         # write available quickly.
                         self._last_command_time = time.time()
-                        _LOGGER.debug("Command wait start")
                         self._command_wait = True
                         
                     break
@@ -346,12 +344,12 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     # requires the closing bracket to be present, to ensure we have a
                     # complete status.
                     self._last_received_sequence_num = int(match.group(1)[1:])
-                    if (self._last_received_sequence_num >= self._command_sequence):
-                        self._command_wait = False
-                        _LOGGER.debug("Command wait end")
                     _LOGGER.debug(
                         "Received sequence number %d", self._last_received_sequence_num
                     )
+                    if (self._command_wait and (self._last_received_sequence_num >= self._command_sequence)):
+                        self._command_wait = False
+                        _LOGGER.debug("Command wait end")
 
                     try:
                         json_status = json.loads(
