@@ -1,12 +1,3 @@
-"""
-This change includes two aspects, a self._command_wait status with timeout between commands, and sequence numbering for idle commands.
-If this is too much a simplerfix is to insert a delay between all messages, eg.
-    while True:
-        try:
-            time.sleep(1)
-            command = self._sendqueue.get_nowait()         
-"""
-
 """Handle connectivity with non-blocking sockets and connection reporting."""
 
 from collections import defaultdict
