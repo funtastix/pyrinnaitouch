@@ -43,6 +43,8 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         self._command_timeout_seconds = 10
         self._hello_received = False
         self._last_received_sequence_num = 0
+        self._command_wait = False
+        self._command_wait_timeout_seconds = 5
 
         RinnaiPollConnection.clients[ip_address] += 1
         if RinnaiPollConnection.clients[ip_address] > 1:
@@ -241,20 +243,23 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
 
             # Now process the command queue. We don't wait for anything to arrive here,
             # the waiting only happens in the select socket call.
+
             while True:
                 try:
+                    if (self._command_wait and ((time.time() - self._last_command_time) < self._command_wait_timeout_seconds)):
+                        break
                     command = self._sendqueue.get_nowait()
                     # A command is ready to be sent. Format it, place it into the
                     # writebuffer and attempt to send it.
+                    self._command_sequence = max(self._command_sequence + 1, self._last_received_sequence_num + 1)
+                    self._command_sequence %=255
                     sequence_header = "N" + str(self._command_sequence).zfill(6)
                     self._writebuffer.extend(sequence_header.encode())
                     self._writebuffer.extend(command.encode())
                     _LOGGER.debug("Sending command %d", self._command_sequence)
                     self._attempt_send()
-
-                    # Increment the command sequence and wrap around 255
-                    self._command_sequence += 1
-                    self._command_sequence %= 255
+                    self._command_wait = True
+                
                 except Empty:
                     # Nothing in the queue for now. Consider sending an empty command
                     # if it's been long enough, and then break out of this loop.
@@ -262,14 +267,19 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                         time.time() - self._last_command_time
                         > self._command_timeout_seconds
                     ):
-                        _LOGGER.debug("Sending idle command")
+                        self._command_sequence = max(self._command_sequence + 1, self._last_received_sequence_num + 1)
+                        self._command_sequence %=255
+                        sequence_header = "N" + str(self._command_sequence).zfill(6)
+                        self._writebuffer.extend(sequence_header.encode())
                         self._writebuffer.extend(b"NA")
+                        _LOGGER.debug("Sending idle command %d", self._command_sequence)
                         self._attempt_send()
 
                         # Update the time here in case the socket doesn't become
                         # write available quickly.
                         self._last_command_time = time.time()
-
+                        self._command_wait = True
+                        
                     break
 
             if time.time() - self._last_received_time > 30:
@@ -328,6 +338,9 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     _LOGGER.debug(
                         "Received sequence number %d", self._last_received_sequence_num
                     )
+                    if (self._command_wait and (self._last_received_sequence_num >= self._command_sequence)):
+                        self._command_wait = False
+                        _LOGGER.debug("Command wait end")
 
                     try:
                         json_status = json.loads(
