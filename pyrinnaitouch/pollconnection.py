@@ -45,6 +45,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         self._last_received_sequence_num = 0
         self._command_wait = False
         self._command_wait_timeout_seconds = 5
+        self._connection_reconnect_delay_seconds = 1
 
         RinnaiPollConnection.clients[ip_address] += 1
         if RinnaiPollConnection.clients[ip_address] > 1:
@@ -369,6 +370,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 self._update_socket_state(RinnaiConnectionState.ERROR)
 
     def _create_socket_and_connect(self) -> None:
+        time.sleep(self._connection_reconnect_delay_seconds)
         self._update_socket_state(RinnaiConnectionState.CONNECTING)
 
         # If an old socket exists, try and clean it up.
