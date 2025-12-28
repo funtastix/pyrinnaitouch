@@ -45,7 +45,9 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         self._last_received_sequence_num = 0
         self._command_wait = False
         self._command_wait_timeout_seconds = 5
-        self._connection_reconnect_delay_seconds = 1
+        #self._connection_reconnect_delay_seconds = 1
+        self._udp_address = "0.0.0.0"
+        self._udp_port = 50000
 
         RinnaiPollConnection.clients[ip_address] += 1
         if RinnaiPollConnection.clients[ip_address] > 1:
@@ -370,9 +372,26 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 self._update_socket_state(RinnaiConnectionState.ERROR)
 
     def _create_socket_and_connect(self) -> None:
-        time.sleep(self._connection_reconnect_delay_seconds)
-        self._update_socket_state(RinnaiConnectionState.CONNECTING)
-
+        #time.sleep(self._connection_reconnect_delay_seconds)
+        #self._update_socket_state(RinnaiConnectionState.CONNECTING)
+        
+        while (
+            self._socketstate == RinnaiConnectionState.IDLE
+            and not self._thread_exit_flag
+        ):
+            try:
+                self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self._socket.bind((self._udp_address, self._udp_port))
+                data, addr = self._socket.recvfrom(1024)
+                Rinnai = b'Rinnai_NBW2_Module'                                         
+                if data.startswith(Rinnai):                                             
+                    _LOGGER.debug("Broadcast data: %s", data.hex())                                          
+                    _LOGGER.debug("Broadcast received from address: %s", addr[0])                                              
+                    self._update_socket_state(RinnaiConnectionState.CONNECTING)
+            except OSError as e:
+                self._update_socket_state(RinnaiConnectionState.ERROR)
+                _LOGGER.error("Unexpected broadcast error: %s", e)
+                
         # If an old socket exists, try and clean it up.
         if self._socket is not None:
             try:
