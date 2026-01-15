@@ -379,19 +379,19 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
             self._socketstate == RinnaiConnectionState.IDLE
             and not self._thread_exit_flag
         ):
-            try:
-                self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                self._socket.bind((self._udp_address, self._udp_port))
-                data, addr = self._socket.recvfrom(1024)
-                Rinnai = b'Rinnai_NBW2_Module'                                         
-                if data.startswith(Rinnai):                                             
-                    _LOGGER.debug("Broadcast data: %s", data.hex())                                          
-                    _LOGGER.debug("Broadcast received from address: %s", addr[0])                                              
-                    self._update_socket_state(RinnaiConnectionState.CONNECTING)
-            except OSError as e:
-                self._update_socket_state(RinnaiConnectionState.ERROR)
-                _LOGGER.error("Unexpected broadcast error: %s", e)
-                
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as self._udpsock:
+                try:
+                    self._udpsock.bind((self._udp_address, self._udp_port))
+                    data, addr = self._udpsock.recvfrom(1024)
+                    Rinnai = b'Rinnai_NBW2_Module'
+                    if data.startswith(Rinnai):
+                        _LOGGER.debug("Broadcast data: %s", data.hex())
+                        _LOGGER.debug("Broadcast received from address: %s", addr[0])
+                        self._update_socket_state(RinnaiConnectionState.CONNECTING)
+                except OSError as e:
+                    self._update_socket_state(RinnaiConnectionState.ERROR)
+                    _LOGGER.error("Unexpected broadcast error: %s", e)
+
         # If an old socket exists, try and clean it up.
         if self._socket is not None:
             try:
