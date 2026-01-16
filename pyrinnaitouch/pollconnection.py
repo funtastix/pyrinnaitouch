@@ -397,11 +397,12 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         if self._socket is not None:
             try:
                 self._socket.shutdown(socket.SHUT_RDWR)
-                self._socket.close()
             except Exception:  # pylint: disable=broad-exception-caught  # noqa: BLE001
                 # It's not worth reporting anything here as we already knew the socket
                 # was a bit broken.
                 pass
+            finally:
+                self._socket.close()
 
         while (
             self._socketstate != RinnaiConnectionState.CONNECTED
