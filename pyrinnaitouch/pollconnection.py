@@ -386,8 +386,9 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     Rinnai = b'Rinnai_NBW2_Module'
                     if data.startswith(Rinnai):
                         _LOGGER.debug("Broadcast data: %s", data.hex())
-                        _LOGGER.debug("Broadcast received from address: %s", addr[0])
-                        self._update_socket_state(RinnaiConnectionState.CONNECTING)
+                        if (addr[0] == self._ip_address):
+                            _LOGGER.debug("Broadcast received from address: %s", addr[0])
+                            self._update_socket_state(RinnaiConnectionState.CONNECTING)
                 except OSError as e:
                     self._update_socket_state(RinnaiConnectionState.ERROR)
                     _LOGGER.error("Unexpected broadcast error: %s", e)
