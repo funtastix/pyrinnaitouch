@@ -394,6 +394,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 if data.startswith(Rinnai):                                             
                     _LOGGER.debug("Broadcast data: %s", data.hex())                                          
                     _LOGGER.debug("Broadcast received from address: %s", addr[0])                                              
+                    _LOGGER.debug("Default password: %s", data[0x30:0x3A])
                     self._update_socket_state(RinnaiConnectionState.CONNECTING)
             except OSError as e:
                 self._update_socket_state(RinnaiConnectionState.ERROR)
