@@ -40,7 +40,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         self._command_sequence = 1
         self._last_command_time = 0
         self._last_received_time = 0
-        self._command_timeout_seconds = 10
+        self._command_timeout_seconds = 60
         self._hello_received = False
         self._last_received_sequence_num = 0
         self._command_wait = False
@@ -48,6 +48,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         #self._connection_reconnect_delay_seconds = 1
         self._udp_address = "0.0.0.0"
         self._udp_port = 50000
+        self._boot_command = b"CS<DVPW>xxxxxx<BOOT>\r"
 
         RinnaiPollConnection.clients[ip_address] += 1
         if RinnaiPollConnection.clients[ip_address] > 1:
@@ -319,6 +320,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         # Constants
         HELLO = b"*HELLO*"  # pylint: disable=invalid-name
         START_MARKER = b"N"  # pylint: disable=invalid-name
+        CONFIG_MARKER = b"C"
         # At least 7 bytes are required for either the *HELLO* or NXXXXXX portions.
         # No point trying if less data than that is in the buffer.
         while len(self._readbuffer) >= 7:
@@ -363,6 +365,11 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 _LOGGER.warning("Error parsing data, attempting recovery")
                 _LOGGER.debug("Discarded %s", self._readbuffer[: match.start(1) - 1])
                 self._readbuffer = self._readbuffer[match.start(1) :]
+
+            elif self._readbuffer.startswith(CONFIG_MARKER):
+                if match := re.match(r"C.*", self._readbuffer.decode()):
+                    _LOGGER.debug("Config info: %s", self._readbuffer.decode())
+                    self._readbuffer = self._readbuffer[match.end() :]
             else:
                 _LOGGER.error(
                     "Buffer does not start with '*HELLO*' or 'N'. Something hasn't "
@@ -425,7 +432,10 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
 
             except ConnectionRefusedError:
                 self._update_socket_state(RinnaiConnectionState.REFUSED)
-                sleep(5)
+                self._writebuffer.extend(self._boot_command)
+                _LOGGER.debug("Sending boot command")
+                self._attempt_send()
+                
             except TimeoutError:
                 self._update_socket_state(RinnaiConnectionState.TIMEOUT)
                 sleep(5)
