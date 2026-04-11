@@ -325,12 +325,14 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
             if self._readbuffer.startswith(HELLO):
                 if not self._hello_received:
                     _LOGGER.info("Hello message successfully received from unit")
+                    self._hello_received = True
                     self._readbuffer = self._readbuffer[len(HELLO) :]
                 else:
                     _LOGGER.error(
                         "Hello message received more than once! Has the unit reset "
                         "somehow?"
                     )
+                    self._readbuffer = self._readbuffer[len(HELLO) :]
             elif self._readbuffer.startswith(START_MARKER):
                 if match := re.match(r"N(\d{6})(\[.*?\])", self._readbuffer.decode()):
                     # First match is sequence number
@@ -355,7 +357,10 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
 
                     self._readbuffer = self._readbuffer[match.end() :]
                 else:
-                    _LOGGER.debug("Did not match regexp: %s", self._readbuffer)
+                    # Message starting with N is incomplete (partial TCP packet).
+                    # Wait for more data to arrive before trying again.
+                    _LOGGER.debug("Incomplete message in buffer, waiting for more data")
+                    break
             # Something has already gone wrong, but maybe we can recover by looking for
             # the next marker.
             elif match := re.match(r"N(\d{6})", self._readbuffer.decode()):
@@ -370,17 +375,23 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                 )
                 _LOGGER.debug("Current buffer: %s", self._readbuffer)
                 self._update_socket_state(RinnaiConnectionState.ERROR)
+                break
 
     def _create_socket_and_connect(self) -> None:
         #time.sleep(self._connection_reconnect_delay_seconds)
         #self._update_socket_state(RinnaiConnectionState.CONNECTING)
-        
+
+        _UDP_FALLBACK_ATTEMPTS = 6  # Try TCP directly after ~30s of no broadcast
+        _udp_timeout_count = 0
+
         while (
             self._socketstate == RinnaiConnectionState.IDLE
             and not self._thread_exit_flag
         ):
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as self._udpsock:
                 try:
+                    self._udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    self._udpsock.settimeout(5)
                     self._udpsock.bind((self._udp_address, self._udp_port))
                     data, addr = self._udpsock.recvfrom(1024)
                     Rinnai = b'Rinnai_NBW2_Module'
@@ -389,6 +400,21 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                         if (addr[0] == self._ip_address):
                             _LOGGER.debug("Broadcast received from address: %s", addr[0])
                             self._update_socket_state(RinnaiConnectionState.CONNECTING)
+                            _udp_timeout_count = 0
+                except TimeoutError:
+                    _udp_timeout_count += 1
+                    if _udp_timeout_count < _UDP_FALLBACK_ATTEMPTS:
+                        _LOGGER.debug(
+                            "No broadcast received within timeout, retrying (%d/%d)",
+                            _udp_timeout_count, _UDP_FALLBACK_ATTEMPTS,
+                        )
+                    else:
+                        _LOGGER.warning(
+                            "No UDP broadcast received after %d attempts, "
+                            "attempting TCP connection directly",
+                            _udp_timeout_count,
+                        )
+                        self._update_socket_state(RinnaiConnectionState.CONNECTING)
                 except OSError as e:
                     self._update_socket_state(RinnaiConnectionState.ERROR)
                     _LOGGER.error("Unexpected broadcast error: %s", e)
