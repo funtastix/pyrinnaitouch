@@ -26,7 +26,7 @@ class RinnaiConnectionState(enum.Enum):
     ERROR = 6
 
 
-class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
+class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes,too-many-branches,too-many-statements
     """Manage the non-blocking connection to the unit."""
 
     # Global map of IP addresses currently in use. Only used to track when multiple
@@ -48,6 +48,7 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         #self._connection_reconnect_delay_seconds = 1
         self._udp_address = "0.0.0.0"
         self._udp_port = 50000
+        self._udpsock = None
 
         RinnaiPollConnection.clients[ip_address] += 1
         if RinnaiPollConnection.clients[ip_address] > 1:
@@ -249,12 +250,14 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
 
             while True:
                 try:
-                    if (self._command_wait and ((time.time() - self._last_command_time) < self._command_wait_timeout_seconds)):
+                    if (self._command_wait and ((time.time() - self._last_command_time)
+                                                 < self._command_wait_timeout_seconds)):
                         break
                     command = self._sendqueue.get_nowait()
                     # A command is ready to be sent. Format it, place it into the
                     # writebuffer and attempt to send it.
-                    self._command_sequence = max(self._command_sequence + 1, self._last_received_sequence_num + 1)
+                    self._command_sequence = max(self._command_sequence + 1,
+                                                 self._last_received_sequence_num + 1)
                     self._command_sequence %=255
                     sequence_header = "N" + str(self._command_sequence).zfill(6)
                     self._writebuffer.extend(sequence_header.encode())
@@ -262,7 +265,6 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     _LOGGER.debug("Sending command %d", self._command_sequence)
                     self._attempt_send()
                     self._command_wait = True
-                
                 except Empty:
                     # Nothing in the queue for now. Consider sending an empty command
                     # if it's been long enough, and then break out of this loop.
@@ -270,7 +272,8 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                         time.time() - self._last_command_time
                         > self._command_timeout_seconds
                     ):
-                        self._command_sequence = max(self._command_sequence + 1, self._last_received_sequence_num + 1)
+                        self._command_sequence = max(self._command_sequence + 1,
+                                                      self._last_received_sequence_num + 1)
                         self._command_sequence %=255
                         sequence_header = "N" + str(self._command_sequence).zfill(6)
                         self._writebuffer.extend(sequence_header.encode())
@@ -282,7 +285,6 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                         # write available quickly.
                         self._last_command_time = time.time()
                         self._command_wait = True
-                        
                     break
 
             if time.time() - self._last_received_time > 30:
@@ -343,7 +345,8 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     _LOGGER.debug(
                         "Received sequence number %d", self._last_received_sequence_num
                     )
-                    if (self._command_wait and (self._last_received_sequence_num >= self._command_sequence)):
+                    if (self._command_wait and
+                         (self._last_received_sequence_num >= self._command_sequence)):
                         self._command_wait = False
                         _LOGGER.debug("Command wait end")
 
@@ -381,7 +384,8 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
         #time.sleep(self._connection_reconnect_delay_seconds)
         #self._update_socket_state(RinnaiConnectionState.CONNECTING)
 
-        _UDP_FALLBACK_ATTEMPTS = 6  # Try TCP directly after ~30s of no broadcast
+        #Try TCP directly after ~30s of no broadcast
+        MAX_UDP_FALLBACK_ATTEMPTS = 6 #pylint: disable=invalid-name
         _udp_timeout_count = 0
 
         while (
@@ -394,19 +398,19 @@ class RinnaiPollConnection:  # pylint: disable=too-many-instance-attributes
                     self._udpsock.settimeout(5)
                     self._udpsock.bind((self._udp_address, self._udp_port))
                     data, addr = self._udpsock.recvfrom(1024)
-                    Rinnai = b'Rinnai_NBW2_Module'
-                    if data.startswith(Rinnai):
+                    rinnai_broadcast_string = b'Rinnai_NBW2_Module'
+                    if data.startswith(rinnai_broadcast_string):
                         _LOGGER.debug("Broadcast data: %s", data.hex())
-                        if (addr[0] == self._ip_address):
+                        if addr[0] == self._ip_address:
                             _LOGGER.debug("Broadcast received from address: %s", addr[0])
                             self._update_socket_state(RinnaiConnectionState.CONNECTING)
                             _udp_timeout_count = 0
                 except TimeoutError:
                     _udp_timeout_count += 1
-                    if _udp_timeout_count < _UDP_FALLBACK_ATTEMPTS:
+                    if _udp_timeout_count < MAX_UDP_FALLBACK_ATTEMPTS:
                         _LOGGER.debug(
                             "No broadcast received within timeout, retrying (%d/%d)",
-                            _udp_timeout_count, _UDP_FALLBACK_ATTEMPTS,
+                            _udp_timeout_count, MAX_UDP_FALLBACK_ATTEMPTS,
                         )
                     else:
                         _LOGGER.warning(
