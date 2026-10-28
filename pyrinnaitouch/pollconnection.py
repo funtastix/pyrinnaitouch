@@ -20,7 +20,8 @@ slot is used:
 * Commands go one at a time, numbered after the module's last sequence
   number (1-254, then back to 1). Each is confirmed against the status
   stream, retried up to 3 times, and skipped if the status already shows it.
-* A bare sequence number is sent as a keepalive every 60 s.
+* A bare sequence number is sent as a keepalive every 30 s. That keeps a margin
+  even at the shortest TCP timeout the module allows (1 minute; default 5).
 """
 
 from collections import defaultdict
@@ -48,7 +49,7 @@ BROADCAST_FALLBACK = 300.0  # connect without a broadcast after waiting this lon
 CONNECT_TIMEOUT = 5.0
 FIRST_STATUS_TIMEOUT = 10.0
 IDLE_TIMEOUT = 5.0
-KEEPALIVE_INTERVAL = 60.0
+KEEPALIVE_INTERVAL = 30.0
 COMMAND_TIMEOUT = 10.0
 COMMAND_ATTEMPTS = 3
 CONNECT_ATTEMPTS = 3  # quick retries before backing off
