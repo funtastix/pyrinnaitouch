@@ -1,8 +1,12 @@
 """Module to capture event handling"""
+import logging
+
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
+
+_LOGGER = logging.getLogger(__name__)
 
 class Event():
     """Simple event class."""
@@ -24,4 +28,9 @@ class Event():
         """Call event handler."""
         for eventhandler in self.__eventhandlers:
             if eventhandler is not None:
-                eventhandler(*args, **keywargs)
+                # One failing handler must not stop the others, or kill the status
+                # thread that calls us.
+                try:
+                    eventhandler(*args, **keywargs)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    _LOGGER.exception("Error in event handler %s", eventhandler)
